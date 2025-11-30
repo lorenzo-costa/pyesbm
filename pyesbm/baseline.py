@@ -15,11 +15,9 @@ from pyesbm.utilities import (
     minVI,
 )
 
-from pyesbm.likelihoods import BaseLikelihood, Bernoulli
+from pyesbm import BaseLikelihood
 
-from pyesbm.priors import BasePrior, GibbsTypePrior
-
-likelihood_dict = {"bernoulli": Bernoulli}
+from pyesbm import BasePrior
 
 
 #########################################
@@ -107,17 +105,9 @@ class BaseESBM:
                 f"bipartite must be boolean. You provided {type(bipartite)}"
             )
 
-        if isinstance(likelihood, str):
-            likelihood = likelihood.lower()
-            if likelihood not in ["bernoulli"]:
-                raise NotImplementedError(
-                    f'likelihood string must be "bernoulli". You provided {likelihood}'
-                )
-            else:
-                likelihood = likelihood_dict[likelihood]()
         if not isinstance(likelihood, BaseLikelihood):
             raise TypeError(
-                f"likelihood must be a string or BaseLikelihood instance. You provided {type(likelihood)}"
+                f"likelihood must be a BaseLikelihood instance. You provided {type(likelihood)}"
             )
 
         if not isinstance(prior, BasePrior):
