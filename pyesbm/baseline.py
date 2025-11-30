@@ -135,8 +135,8 @@ class BaseESBM(ESBMconfig):
             cluster_init_2 = None
 
         self._process_clusters(clustering=cluster_init_1, side=1)
-        if self.bipartite is True:
-            self._process_clusters(clustering=cluster_init_2, side=2)
+        self._process_clusters(clustering=cluster_init_2, side=2)
+        
 
         # if there are covs compute nch
         if self.covariates_1 is not None:
@@ -523,9 +523,14 @@ class BaseESBM(ESBMconfig):
             Cluster assignments for users.
 
         """
-        occupied_clusters, out_frequencies = np.unique(clustering, return_counts=True)
-        out_num_clusters = len(occupied_clusters)
-        out_clustering = np.array(clustering)
+        out_clustering = None
+        out_num_clusters = None
+        out_frequencies = None
+
+        if clustering is not None:
+            occupied_clusters, out_frequencies = np.unique(clustering, return_counts=True)
+            out_num_clusters = len(occupied_clusters)
+            out_clustering = np.array(clustering)
 
         setattr(self, f"clustering_{side}", out_clustering)
         setattr(self, f"num_clusters_{side}", out_num_clusters)
