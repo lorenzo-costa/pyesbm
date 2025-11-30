@@ -6,11 +6,10 @@ import sys
 from pathlib import Path
 import warnings
 
-sys.path.append(str(Path(__file__).parent.parent))
 
-from utilities.numba_functions import sampling_scheme, compute_log_probs_cov, compute_log_likelihood
-from utilities.misc_functs import compute_co_clustering_matrix
-from utilities.vi_functs import minVI
+from pyesbm.utilities import (sampling_scheme, compute_log_probs_cov, compute_log_likelihood,
+                    compute_co_clustering_matrix, minVI)
+
 from pyesbm.likelihoods import BaseLikelihood, Bernoulli
 
 likelihood_dict = {
@@ -88,6 +87,8 @@ class BaseESBM:
         args = {k: v for k, v in locals().items() if k != "self"}
         
         self._type_check(**args)
+        
+        self.scheme_dict = {'DM':1, 'DP':2, 'PY':3, 'GN':4}
         
         self._process_args(**args)
 
@@ -176,13 +177,12 @@ class BaseESBM:
         
         if clustering is not None:
             if isinstance(clustering, str):
+                clustering = clustering.lower()
                 if clustering != 'random':
                     raise ValueError(f'clustering string value must be "random". You provided {clustering}')
-                
-            if isinstance(clustering, list):
-                clustering = np.array(clustering)
             
-            if isinstance(clustering, np.ndarray):
+            elif isinstance(clustering, (np.ndarray, list)):
+                clustering = np.array(clustering)
                 if clustering.ndim == 1:
                     if bipartite is True:
                         raise ValueError('for bipartite networks clustering must be a tuple of two lists/arrays')
@@ -280,15 +280,19 @@ class BaseESBM:
             likelihood = likelihood()
             
         # process covariates
+        self.cov_names_1, self.cov_types_1, self.cov_values_1 = None, None, None
         if self.covariates_1 is not None:
             self.cov_names_1, self.cov_types_1, self.cov_values_1 = self._process_cov(self.covariates_1)
 
+        self.cov_names_2, self.cov_types_2, self.cov_values_2 = None, None, None
         if self.covariates_2 is not None:
             self.cov_names_2, self.cov_types_2, self.cov_values_2 = self._process_cov(self.covariates_2)
         
         clustering = kwargs.get('clustering')
         # process clustering
         if clustering is not None:
+            if isinstance(clustering, str):
+                clustering = clustering.lower()
             if clustering == "random":
                 if self.bipartite is True:
                     clustering_1 = self._init_cluster_random(num_nodes=self.num_nodes_1, 
@@ -391,7 +395,7 @@ class BaseESBM:
                                     H=num_clusters,
                                     frequencies=np.array(frequencies),
                                     bar_h=self.bar_h,
-                                    scheme_type=self.scheme_type,
+                                    scheme_type=self.scheme_dict[self.scheme_type],
                                     scheme_param=self.scheme_param, 
                                     sigma=self.sigma, 
                                     gamma=self.gamma)

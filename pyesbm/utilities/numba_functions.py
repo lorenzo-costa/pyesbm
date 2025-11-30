@@ -129,7 +129,7 @@ def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, 
 
     """
     
-    if scheme_type == 'DM':
+    if scheme_type == 1:
         if H < bar_h:
             probs = np.zeros(len(frequencies)+1)
             for i in range(len(frequencies)):
@@ -140,19 +140,19 @@ def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, 
             for i in range(len(frequencies)):
                 probs[i] = frequencies[i]-sigma
 
-    if scheme_type == 'DP':
+    if scheme_type == 2:
         probs = np.zeros(len(frequencies)+1)
         for i in range(len(frequencies)):
             probs[i] = frequencies[i]
         probs[-1] = scheme_param
 
-    if scheme_type == 'PY':
+    if scheme_type == 3:
         probs = np.zeros(len(frequencies)+1)
         for i in range(len(frequencies)):
             probs[i] = frequencies[i]-sigma
         probs[-1] = scheme_param+H*sigma
 
-    if scheme_type == 'GN':
+    if scheme_type == 4:
         probs = np.zeros(len(frequencies)+1)
         for i in range(len(frequencies)):
             probs[i] = (frequencies[i]+1)*(V-H+gamma)
