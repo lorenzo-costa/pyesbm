@@ -1,4 +1,3 @@
-
 from .baseline import BaseESBM
 from .likelihoods import BaseLikelihood, Bernoulli
 
