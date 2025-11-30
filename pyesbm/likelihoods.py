@@ -1,3 +1,7 @@
+"""
+likelihoods classes
+"""
+
 class BaseLikelihood:
     def __init__(
         self, bipartite=False, prior_a=1, prior_b=1, eps=1e-10, degree_correction=0
@@ -45,19 +49,21 @@ class BetaBernoulli(BaseLikelihood):
         self.alpha = alpha
         self.beta = beta
 
-    def _type_check(self):
-        if not isinstance(self.alpha, (int, float)):
+    def _type_check(self, **kwargs):
+        alpha = kwargs.get("alpha")
+        beta = kwargs.get("beta")
+        if not isinstance(alpha, (int, float)):
             raise TypeError(
-                f"alpha must be int or float. You provided {type(self.alpha)}"
+                f"alpha must be int or float. You provided {type(alpha)}"
             )
-        if self.alpha <= 0:
-            raise ValueError(f"alpha must be positive. You provided {self.alpha}")
-        if not isinstance(self.beta, (int, float)):
+        if alpha <= 0:
+            raise ValueError(f"alpha must be positive. You provided {alpha}")
+        if not isinstance(beta, (int, float)):
             raise TypeError(
-                f"beta must be int or float. You provided {type(self.beta)}"
+                f"beta must be int or float. You provided {type(beta)}"
             )
-        if self.beta <= 0:
-            raise ValueError(f"beta must be positive. You provided {self.beta}")
+        if beta <= 0:
+            raise ValueError(f"beta must be positive. You provided {beta}")
 
     def compute_likelihood(self, Y, clusters_1, clusters_2):
         # Implement the Bernoulli likelihood computation

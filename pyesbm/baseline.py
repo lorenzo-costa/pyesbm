@@ -1,29 +1,27 @@
 import time
 import numpy as np
-from scipy import sparse
 from scipy.stats import mode
-import sys
-from pathlib import Path
-import warnings
-
 
 from pyesbm.utilities import (
-    sampling_scheme,
     compute_log_probs_cov,
-    compute_log_likelihood,
     compute_co_clustering_matrix,
     minVI,
+    compute_mhk,
+    compute_yuk,
+    compute_yih,
+    ClusterProcessor
+    
 )
 
-from pyesbm import BaseLikelihood
+from pyesbm.esbm_config import ESBMconfig
 
-from pyesbm import BasePrior
+
 
 
 #########################################
 # baseline class
 ########################################
-class BaseESBM:
+class BaseESBM(ESBMconfig):
     """Baseline ESBM model
 
     Parameters
@@ -71,10 +69,10 @@ class BaseESBM:
         Y,
         likelihood,
         prior,
-        *args,
+        *,
         bipartite=True,
         clustering=None,
-        degree_correction=1,
+        degree_correction=0,
         alpha_c=1,
         covariates_1=None,
         covariates_2=None,
@@ -83,170 +81,22 @@ class BaseESBM:
         verbose=False,
     ):
         # a lot of type and value checking
-        args = {k: v for k, v in locals().items() if k != "self"}
 
-        self._type_check(**args)
+        super().__init__(
+            Y=Y,
+            likelihood=likelihood,
+            prior=prior,
+            bipartite=bipartite,
+            clustering=clustering,
+            degree_correction=degree_correction,
+            alpha_c=alpha_c,
+            covariates_1=covariates_1,
+            covariates_2=covariates_2,
+            epsilon=epsilon,
+            rng=rng,
+            verbose=verbose,
+        )
 
-        self._process_args(**args)
-
-    def _type_check(self, **kwargs):
-        covariates_1 = kwargs.get("covariates_1")
-        covariates_2 = kwargs.get("covariates_2")
-        clustering = kwargs.get("clustering")
-        bipartite = kwargs.get("bipartite")
-        likelihood = kwargs.get("likelihood")
-        prior = kwargs.get("prior")
-        rng = kwargs.get("rng")
-        Y = kwargs.get("Y")
-        num_nodes_1, num_nodes_2 = Y.shape
-
-        if not isinstance(bipartite, bool):
-            raise TypeError(
-                f"bipartite must be boolean. You provided {type(bipartite)}"
-            )
-
-        if not isinstance(likelihood, BaseLikelihood):
-            raise TypeError(
-                f"likelihood must be a BaseLikelihood instance. You provided {type(likelihood)}"
-            )
-
-        if not isinstance(prior, BasePrior):
-            raise TypeError(
-                f"prior must be a BasePrior instance. You provided {type(prior)}"
-            )
-
-        if clustering is not None:
-            if isinstance(clustering, str):
-                clustering = clustering.lower()
-                if clustering != "random":
-                    raise ValueError(
-                        f'clustering string value must be "random". You provided {clustering}'
-                    )
-
-            elif isinstance(clustering, (np.ndarray, list)):
-                clustering = np.array(clustering)
-                if clustering.ndim == 1:
-                    if bipartite is True:
-                        raise ValueError(
-                            "for bipartite networks clustering must be a tuple of two lists/arrays"
-                        )
-                    else:
-                        if len(clustering) != num_nodes_1:
-                            raise ValueError(
-                                f"clustering length must be equal to number of nodes. You provided {len(clustering)} but should be {num_nodes_1}"
-                            )
-                elif clustering.ndim == 2:
-                    if bipartite is False:
-                        raise ValueError(
-                            "for unipartite networks clustering must be a single list/array"
-                        )
-                    else:
-                        if (
-                            clustering.shape[0] != num_nodes_1
-                            and clustering.shape[0] != num_nodes_2
-                        ):
-                            raise ValueError(
-                                f"clustering shape must be equal to number of nodes. You provided {clustering.shape} but should be ({num_nodes_1}, ) and ({num_nodes_2}, )"
-                            )
-                else:
-                    raise ValueError(
-                        f"clustering array must be 1D or 2D. You provided {clustering.ndim}D array"
-                    )
-            else:
-                raise TypeError(
-                    f"clustering must be a string, list or array. You provided {type(clustering)}"
-                )
-
-        if covariates_1 is not None:
-            if not isinstance(covariates_1, (list)):
-                raise TypeError(
-                    "covariates for users must be provided as a list of tuples"
-                )
-            for cov in covariates_1:
-                if not isinstance(cov, tuple):
-                    raise TypeError(
-                        "each covariate for users must be provided as a tuple"
-                    )
-                if not isinstance(cov[0], str):
-                    raise TypeError(
-                        "covariate name and type for users must be provided as a string"
-                    )
-                if not isinstance(cov[1], (list, np.ndarray)):
-                    raise TypeError(
-                        "covariate values for users must be provided as a list or array"
-                    )
-                if len(cov[1]) != num_nodes_1:
-                    raise ValueError(
-                        f"covariate length is {len(cov[1])} but should be {num_nodes_1}"
-                    )
-
-        if covariates_2 is not None:
-            if not isinstance(covariates_2, (list)):
-                raise TypeError(
-                    "covariates for items must be provided as a list of tuples"
-                )
-            for cov in covariates_2:
-                if not isinstance(cov, tuple):
-                    raise TypeError(
-                        "each covariate for items must be provided as a tuple"
-                    )
-                if not isinstance(cov[0], str):
-                    raise TypeError(
-                        "covariate name and type for items must be provided as a string"
-                    )
-                if not isinstance(cov[1], (list, np.ndarray)):
-                    raise TypeError(
-                        "covariate values for items must be provided as a list or array"
-                    )
-                if len(cov[1]) != num_nodes_2:
-                    raise ValueError(
-                        f"covariate length is {len(cov[1])} but should be {num_nodes_2}"
-                    )
-
-        if rng is not None:
-            if not isinstance(rng, (np.random.Generator, int)):
-                raise TypeError(
-                    "rng must be a numpy random Generator or an integer seed"
-                )
-
-    def _process_args(self, **kwargs):
-        self.Y = kwargs.get("Y")
-        self.bipartite = kwargs.get("bipartite")
-
-        self.num_nodes_1, self.num_nodes_2 = self.Y.shape
-        self.prior_a = kwargs.get("prior_a")
-        self.prior_b = kwargs.get("prior_b")
-        self.verbose = kwargs.get("verbose")
-        self.epsilon = kwargs.get("epsilon")
-
-        self.scheme_type = kwargs.get("scheme_type")
-        self.scheme_param = kwargs.get("scheme_param")
-        self.bar_h = kwargs.get("bar_h")
-        self.gamma = kwargs.get("gamma")
-        self.sigma = kwargs.get("sigma")
-        self.degree_correction = kwargs.get("degree_correction")
-
-        self.alpha_c = kwargs.get("alpha_c")
-        self.alpha_0 = np.sum(np.array(self.alpha_c))
-        self.covariates_1 = kwargs.get("covariates_1")
-        self.covariates_2 = kwargs.get("covariates_2")
-
-        self.likelihood = kwargs.get("likelihood")
-        self.prior = kwargs.get("prior")
-
-        self.train_llk = None
-        self.mcmc_draws_users = None
-        self.mcmc_draws_items = None
-
-        self.estimated_items = None
-        self.estimated_users = None
-
-        self.estimated_theta = None
-
-        self.cov_nch_1 = None
-        self.cov_nch_2 = None
-
-        rng = kwargs.get("rng")
         if rng is None:
             self.rng = np.random.default_rng()
         elif isinstance(rng, int):
@@ -254,332 +104,49 @@ class BaseESBM:
         else:
             self.rng = rng
 
-        # process covariates
-        self.cov_names_1, self.cov_types_1, self.cov_values_1 = None, None, None
-        if self.covariates_1 is not None:
-            self.cov_names_1, self.cov_types_1, self.cov_values_1 = self._process_cov(
-                self.covariates_1
-            )
-
-        self.cov_names_2, self.cov_types_2, self.cov_values_2 = None, None, None
-        if self.covariates_2 is not None:
-            self.cov_names_2, self.cov_types_2, self.cov_values_2 = self._process_cov(
-                self.covariates_2
-            )
-
-        clustering = kwargs.get("clustering")
-        # process clustering
-        if clustering is not None:
-            if isinstance(clustering, str):
-                clustering = clustering.lower()
-            if clustering == "random":
-                if self.bipartite is True:
-                    clustering_1 = self._init_cluster_random(
-                        num_nodes=self.num_nodes_1,
-                        cov_values=self.cov_values_1,
-                        cov_types=self.cov_types_1,
-                    )
-                    clustering_2 = self._init_cluster_random(
-                        num_nodes=self.num_nodes_2,
-                        cov_values=self.cov_values_2,
-                        cov_types=self.cov_types_2,
-                    )
-                else:
-                    clustering_1 = self._init_cluster_random(
-                        num_nodes=self.num_nodes_1,
-                        cov_values=self.cov_values_1,
-                        cov_types=self.cov_types_1,
-                    )
-
-                    clustering_2 = None
-            else:
-                if self.bipartite is True:
-                    clustering_1 = clustering[0]
-                    clustering_2 = clustering[1]
-                else:
-                    clustering_1 = clustering
-                    clustering_2 = None
+        if isinstance(clustering, (list, np.ndarray)):
+            clustering_1 = clustering[0]
+            clustering_2 = clustering[1] if self.bipartite is True else None
         else:
-            if self.bipartite is True:
-                clustering_1 = np.arange(self.num_nodes_1)
-                clustering_2 = np.arange(self.num_nodes_2)
-            else:
-                clustering_1 = np.arange(self.num_nodes_1)
-                clustering_2 = None
-
-        self._process_clusters(clustering=clustering_1, side=1)
+            clustering_1 = clustering
+            clustering_2 = clustering if self.bipartite is True else None
+        
+        cluster_init_1 = ClusterProcessor(self.num_nodes_1,
+                                        clustering_1,
+                                        self.prior,
+                                        covariates=self.covariates_1,
+                                        verbose=self.verbose,
+                                        epsilon=self.epsilon,
+                                        rng=self.rng)
+        
+        cluster_init_1 = cluster_init_1.clustering
+        
         if self.bipartite is True:
-            self._process_clusters(clustering=clustering_2, side=2)
+            cluster_init_2 = ClusterProcessor(self.num_nodes_2,
+                                            clustering_2,
+                                            self.prior,
+                                            covariates=self.covariates_2,
+                                            verbose=self.verbose,
+                                            epsilon=self.epsilon,
+                                            rng=self.rng)
+            
+            cluster_init_2 = cluster_init_2.clustering
+        else:
+            cluster_init_2 = None
+
+        self._process_clusters(clustering=cluster_init_1, side=1)
+        if self.bipartite is True:
+            self._process_clusters(clustering=cluster_init_2, side=2)
 
         # if there are covs compute nch
         if self.covariates_1 is not None:
-            self.cov_nch_users = self._compute_nch(
-                self.cov_values_1, self.clustering_1, self.num_clusters_1
-            )
+            self.covariate_1.get_nch(clustering=self.clustering_1,
+                                     num_clusters=self.num_clusters_1)
 
         if self.covariates_2 is not None:
-            self.cov_nch_items = self._compute_nch(
-                self.cov_values_2, self.clustering_2, self.num_clusters_2
-            )
+            self.covariate_2.get_nch(clustering=self.clustering_2,
+                                     num_clusters=self.num_clusters_2)
 
-    def _process_clusters(self, clustering, side=1):
-        """Computes cluster metrics.
-
-        Parameters
-        ----------
-        clustering : array-like
-            Cluster assignments for users.
-
-        """
-        occupied_clusters, out_frequencies = np.unique(clustering, return_counts=True)
-        out_num_clusters = len(occupied_clusters)
-        out_clustering = np.array(clustering)
-
-        setattr(self, f"clustering_{side}", out_clustering)
-        setattr(self, f"num_clusters_{side}", out_num_clusters)
-        setattr(self, f"frequencies_{side}", out_frequencies)
-
-        return
-
-    def _init_cluster_random(self, num_nodes, cov_values=None, cov_types=None):
-        """Initialises random clustering structure according to the prior.
-
-        Parameters
-        ----------
-        clustering : array-like, optional
-            Initial clustering structure. If 'random' random initialisation is performed,
-            by default None
-        cov_values : list, optional
-            list of covariate values, by default None
-        cov_types : list, optional
-            list of covariate types, by default None
-
-        Returns
-        -------
-        clustering : array-like
-            Final clustering.
-        """
-
-        clustering = [0]
-        num_clusters = 1
-        current_num_nodes = 1
-        frequencies = [1]
-
-        if self.verbose is True:
-            print("initialsing user clusters random")
-
-        nch = None
-        if cov_values is not None:
-            nch = self._compute_nch(cov_values, clustering, num_clusters)
-
-        # sequential assignment of clusters
-        for i in range(1, num_nodes):
-            # prior contribution
-            prior_probs = self.prior.sample(
-                num_nodes=current_num_nodes,
-                num_clusters=num_clusters,
-                frequencies=np.array(frequencies),
-            )
-
-            logits_cov = 0
-            if nch is not None:
-                logits_cov = compute_log_probs_cov(
-                    probs=probs,
-                    idx=i,
-                    cov_types=cov_types,
-                    cov_nch=nch,
-                    cov_values=cov_values,
-                    nh=np.array(frequencies),
-                    alpha_c=self.alpha_c,
-                    alpha_0=self.alpha_0,
-                )
-
-            # convert back using exp and normalise
-            logits = np.log(prior_probs + self.epsilon) + logits_cov
-            logits = logits - max(logits)
-            probs = np.exp(logits)
-            probs = probs / probs.sum()
-
-            assignment = self.rng.choice(len(probs), p=probs)
-            if assignment >= num_clusters:
-                # make new cluster
-                num_clusters += 1
-                frequencies.append(1)
-
-                if nch is not None:
-                    for cov in range(len(cov_values)):
-                        n_unique = len(np.unique(cov_values[cov]))
-                        temp = np.zeros(n_unique)
-                        c = cov_values[cov][i]
-                        temp[c] += 1
-                        nch[cov] = np.column_stack([nch[cov], temp.reshape(-1, 1)])
-            else:
-                frequencies[assignment] += 1
-                if nch is not None:
-                    for cov in range(len(cov_values)):
-                        c = cov_values[cov][i]
-                        nch[cov][c, assignment] += 1
-
-            clustering.append(assignment)
-            current_num_nodes += 1
-
-        clustering = np.array(clustering)
-
-        # safety check
-        assert current_num_nodes == num_nodes
-        assert len(clustering) == num_nodes
-        assert len(np.unique(clustering)) == num_clusters
-
-        return clustering, frequencies, num_clusters
-
-    def _compute_mhk(self, clustering_1=None, clustering_2=None):
-        """Computes the MHK matrix using (fast) sparse matrix multiplication.
-
-        Parameters
-        ----------
-        clustering_1 : list, optional
-            First dimension clustering, if None uses self.clustering_1. By default None
-        clustering_2 : list, optional
-            Second dimension clustering, if None uses self.clustering_2. By default None
-
-        Returns
-        -------
-        mhk : np.array
-            MHK matrix
-        """
-
-        if clustering_1 is None:
-            clustering_1 = self.clustering_1
-            num_nodes_1 = self.num_nodes_1
-            num_clusters_1 = self.num_clusters_1
-        else:
-            num_nodes_1 = len(clustering_1)
-            num_clusters_1 = len(np.unique(clustering_1))
-
-        if clustering_2 is None:
-            clustering_2 = self.clustering_2
-            num_nodes_2 = self.num_nodes_2
-            num_clusters_2 = self.num_clusters_2
-        else:
-            num_nodes_2 = len(clustering_2)
-            num_clusters_2 = len(np.unique(clustering_2))
-
-        # using sparse matrices for speed, this sums up entries of
-        # Y in depending on their block assignment.
-        # m[h,k] is the sum of entries for blocks (h, k)
-        clusters_1 = sparse.csr_matrix(
-            (np.ones(num_nodes_1), (range(num_nodes_1), clustering_1)),
-            shape=(num_nodes_1, num_clusters_1),
-        )
-
-        clusters_2 = sparse.csr_matrix(
-            (np.ones(num_nodes_2), (range(num_nodes_2), clustering_2)),
-            shape=(num_nodes_2, num_clusters_2),
-        )
-
-        mhk = clusters_1.T @ self.Y @ clusters_2
-        return mhk
-
-    def _compute_yuk(self):
-        """Computes the YUK matrix.
-
-        Returns
-        -------
-        yuk : np.array
-            YUK matrix
-        """
-        # using sparse matrices for speed, this sums up entries of
-        # Y in depending on their block assignment.
-        # y[u,k] is the sum of entries for user u and cluster k (in items)
-        item_clusters = sparse.csr_matrix(
-            (np.ones(self.num_items), (range(self.num_items), self.item_clustering)),
-            shape=(self.num_items, self.num_clusters_items),
-        )
-
-        yuk = self.Y @ item_clusters
-        return yuk
-
-    def _compute_yih(self):
-        """Computes the YIH matrix.
-
-        Returns
-        -------
-        yih : np.array
-            YIH matrix
-        """
-        # using sparse matrices for speed, this sums up entries of
-        # Y in depending on their block assignment.
-        # y[i,h] is the sum of entries for item i and cluster h (in users)
-        user_clusters = sparse.csr_matrix(
-            (np.ones(self.num_users), (range(self.num_users), self.user_clustering)),
-            shape=(self.num_users, self.num_clusters_users),
-        )
-
-        yih = self.Y.T @ user_clusters
-        return yih
-
-    def _process_cov(self, cov_list):
-        """Processes a list of covariates.
-
-        Parameters
-        ----------
-        cov_list : list of tuples
-            list of tuples (covname_covtype, covvalues)
-
-        Returns
-        -------
-        tuple: (cov_names, cov_types, cov_values)
-            cov_names: list of covariate names
-            cov_types: list of covariate types
-            cov_values: list of covariate values
-        """
-        cov_names = []
-        cov_types = []
-        cov_values = []
-        for cov in cov_list:
-            cov_name, cov_type = cov[0].split("_")
-            cov_names.append(cov_name)
-            cov_types.append(cov_type)
-            cov_values.append(np.array(cov[1]))
-
-        if isinstance(self.alpha_c, (int, float)):
-            temp = []
-            for i in range(len(cov_names)):
-                unique_cov_values = len(np.unique(cov_values[i]))
-                temp.extend([self.alpha_c for _ in range(unique_cov_values)])
-
-            self.alpha_c = np.array(temp)
-            self.alpha_0 = np.sum(self.alpha_c)
-
-        return np.array(cov_names), np.array(cov_types), np.array(cov_values)
-
-    def _compute_nch(self, cov_values, clustering, n_clusters):
-        """Computes the NCH matrix.
-
-        Parameters
-        ----------
-        cov_values : list
-            list of covariate values
-        clustering : list
-            list of cluster assignments
-        n_clusters : int
-            number of clusters
-
-        Returns
-        -------
-        list
-            list of NCH matrices
-        """
-        cov_nch = []
-        for cov in range(len(cov_values)):
-            uniques = np.unique(cov_values[cov])
-            nch = np.zeros((len(uniques), n_clusters))
-            for h in range(n_clusters):
-                mask = clustering == h
-                for c in uniques:
-                    nch[c, h] = (cov_values[cov][mask] == c).sum()
-            cov_nch.append(nch)
-        return np.array(cov_nch)
 
     def gibbs_step(self):
         """Performs a Gibbs sampling step."""
@@ -594,10 +161,13 @@ class BaseESBM:
         float
             Log-likelihood value
         """
+        
+        mhk = compute_mhk(self.Y, self.clustering_1, self.clustering_2)
+        
         ll = self.likelihood.compute_log_likelihood(
             frequencies_1=self.frequencies_users,
             frequencies_2=self.frequencies_items,
-            mhk=self._compute_mhk(),
+            mhk=mhk,
             clustering_1=self.clustering_1,
             clustering_2=self.clustering_2,
             degree_correction=self.degree_correction,
@@ -635,30 +205,35 @@ class BaseESBM:
 
         if verbose > 0:
             print("starting log likelihood", ll)
+            
         llks = np.zeros(n_iters + 1)
-
         mcmc_draws_1 = np.zeros((n_iters + 1, self.num_users), dtype=np.int32)
         mcmc_draws_2 = np.zeros((n_iters + 1, self.num_items), dtype=np.int32)
 
-        mcmc_frequencies_1 = []
-        mcmc_frequencies_2 = []
+        mcmc_frequencies_list_1 = []
+        mcmc_frequencies_list_2 = []
+
+        degree_users_list_1 = []
+        degree_items_list_2 = []
 
         llks[0] = ll
         mcmc_draws_1[0] = self.user_clustering.copy()
         mcmc_draws_2[0] = self.item_clustering.copy()
-        mcmc_frequencies_1.append(self.frequencies_1.copy())
-        mcmc_frequencies_2.append(self.frequencies_2.copy())
+        mcmc_frequencies_list_1.append(self.frequencies_1.copy())
+        mcmc_frequencies_list_2.append(self.frequencies_2.copy())
+        degree_users_list_1.append(self.degre_users)
+        degree_items_list_2.append(self._compute_degree_sequence(side=2))
 
         check = time.perf_counter()
         for it in range(n_iters):
             self.gibbs_step()
-            ll = self.compute_log_likelihood()
+            ll = self._compute_log_likelihood()
 
             llks[it + 1] += ll
             mcmc_draws_1[it + 1] += self.clustering_1
             mcmc_draws_2[it + 1] += self.clustering_2
-            mcmc_frequencies_1.append(self.frequencies_1.copy())
-            mcmc_frequencies_2.append(self.frequencies_2.copy())
+            mcmc_frequencies_list_1.append(self.frequencies_1.copy())
+            mcmc_frequencies_list_2.append(self.frequencies_2.copy())
 
             if verbose >= 1:
                 if it % (n_iters // 10) == 0:
@@ -680,8 +255,8 @@ class BaseESBM:
         self.train_llk = llks
         self.mcmc_draws_1 = mcmc_draws_1
         self.mcmc_draws_2 = mcmc_draws_2
-        self.mcmc_draws_1_frequencies = mcmc_frequencies_1
-        self.mcmc_draws_2_frequencies = mcmc_frequencies_2
+        self.mcmc_draws_1_frequencies = mcmc_frequencies_list_1
+        self.mcmc_draws_2_frequencies = mcmc_frequencies_list_2
 
         return llks, mcmc_draws_1, mcmc_draws_2
 
@@ -783,15 +358,14 @@ class BaseESBM:
 
         if method not in ["avg", "comp", "all"]:
             raise Exception("invalid method")
+        if self.mcmc_draws_1 is None:
+            raise Exception("model must be trained first")
 
         cc_matrix_1, cc_matrix_2 = None, None
         est_cluster_1, est_cluster_2 = None, None
         vi_value_1, vi_value_2 = None, None
 
-        cc_matrix_1 = self._compute_co_clustering_matrix(
-            mcmc_draws=self.mcmc_draws_1, burn_in=burn_in, thinning=thinning
-        )
-
+        cc_matrix_1 = self.compute_co_clustering_matrix(self.mcmc_draws_1[burn_in::thinning])
         psm_1 = cc_matrix_1 / np.max(cc_matrix_1)
 
         res_side_1 = minVI(
@@ -815,9 +389,7 @@ class BaseESBM:
             return est_cluster_1, vi_value_1
 
         # repeat for other side if bipartite
-        cc_matrix_2 = self._compute_co_clustering_matrix(
-            mcmc_draws=self.mcmc_draws_2, burn_in=burn_in, thinning=thinning
-        )
+        cc_matrix_2 = self.compute_co_clustering_matrix(self.mcmc_draws_2[burn_in::thinning])
         psm_items = cc_matrix_2 / np.max(cc_matrix_2)
 
         res_side_2 = minVI(
@@ -836,14 +408,6 @@ class BaseESBM:
 
         return est_cluster_1, vi_value_1, est_cluster_2, vi_value_2
 
-    def _compute_co_clustering_matrix(self, mcmc_draws, burn_in=0, thinning=1):
-        """Aux function to call the optimised function on relevant sample"""
-        if self.mcmc_draws_users is None:
-            raise Exception("model must be trained first")
-
-        cc_matrix = compute_co_clustering_matrix(mcmc_draws[burn_in::thinning])
-
-        return cc_matrix
 
     def point_predict(self, pairs, seed=None):
         """Predict ratings for user-item pairs.
@@ -949,3 +513,23 @@ class BaseESBM:
             out.append(choice)
 
         return out
+    
+    def _process_clusters(self, clustering, side=1):
+        """Computes cluster metrics.
+
+        Parameters
+        ----------
+        clustering : array-like
+            Cluster assignments for users.
+
+        """
+        occupied_clusters, out_frequencies = np.unique(clustering, return_counts=True)
+        out_num_clusters = len(occupied_clusters)
+        out_clustering = np.array(clustering)
+
+        setattr(self, f"clustering_{side}", out_clustering)
+        setattr(self, f"num_clusters_{side}", out_num_clusters)
+        setattr(self, f"frequencies_{side}", out_frequencies)
+
+        return
+

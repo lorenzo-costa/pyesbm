@@ -1,6 +1,6 @@
 import warnings
 import numpy as np
-from utilities import sampling_scheme
+from pyesbm.utilities import sampling_scheme
 
 
 class BasePrior:
@@ -11,7 +11,7 @@ class BasePrior:
         raise NotImplementedError("This method should be implemented by subclasses.")
 
 
-class GibbsTypePrior(Prior):
+class GibbsTypePrior(BasePrior):
     """Gibbs Type Prior for Bayesian Nonparametric Models
 
     Parameters
@@ -50,7 +50,7 @@ class GibbsTypePrior(Prior):
         self.scheme_param = scheme_param
         self.sigma = sigma
         self.gamma = gamma
-        self.bar_h = bar_h
+        self.bar_h = bar_h if bar_h is not None else -1
         self.num_nodes_1 = num_nodes_1
         self.num_nodes_2 = num_nodes_2
         self.scheme_dict = {"DM": 1, "DP": 2, "PY": 3, "GN": 4}
