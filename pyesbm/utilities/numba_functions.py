@@ -6,7 +6,6 @@
 import numba as nb
 from math import lgamma
 import numpy as np
-from .gpu_functions import compute_prob_gpu
 
 ###########################################
 @nb.jit(nopython=True, fastmath=True)
@@ -166,85 +165,8 @@ def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, 
 # log probability computation for gibbs sampling steps
 #################################
 
-# main function picking implementation
-def compute_log_prob(probs, 
-                     mhk_minus, 
-                     frequencies_primary_minus, 
-                     frequencies_secondary,
-                     y_values, 
-                     epsilon, 
-                     a, 
-                     b, 
-                     max_clusters, 
-                     is_user_mode, 
-                     degree_corrected,
-                     degree_param, 
-                     degree_cluster_minus, 
-                     degree_node, 
-                     device):
-    """Function to compute log probabilities for Gibbs sampling steps.
-    
-    Wrapper to choose between CPU and GPU implementations. To understand the parameters, 
-    see the detailed descriptions in results/text/lorenzocosta_thesis.pdf.
-
-    Parameters
-    ----------
-    probs : array-like
-        Array of probabilities.
-    mhk_minus : array-like
-        mhk matrix with user/item removed.
-    frequencies_primary_minus : array-like
-        Frequencies of users/items with user/item removed.
-    frequencies_secondary : array-like
-        Frequencies of items/users (opposite of primary).
-    y_values : array-like
-        Array of yih or yuk values.
-    epsilon : float
-        Small value to avoid division by zero.
-    a : float
-        Shape parameter for gamma prior.
-    b : float
-        Rate parameter for gamma prior.
-    max_clusters : int
-        Current number of clusters.
-    is_user_mode : bool
-        Flag indicating user mode.
-    degree_corrected : bool
-        Flag indicating if degree correction is applied.
-    degree_param : float
-        Degree-correction parameter.
-    degree_cluster_minus : array-like
-        Sum of degrees in the cluster with user/item removed.
-    degree_node : float
-        Degree of selected node.
-    device : str
-        Device to run the computations on ('cpu' or 'gpu').
-
-    Returns
-    -------
-    log_probs : array-like
-        Computed log probabilities.
-    """
-    
-    if device == 'gpu':
-        try:
-            return compute_prob_gpu(probs, mhk_minus, frequencies_primary_minus, frequencies_secondary,
-                                         y_values, epsilon, a, b, max_clusters, degree_corrected,
-                                         degree_cluster_minus, degree_node, degree_param, is_user_mode)
-        except Exception as e:
-            print(f"Error using GPU implementation: {e}")
-            return compute_prob_cpu(probs, mhk_minus, frequencies_primary_minus, frequencies_secondary,
-                          y_values, epsilon, a, b, max_clusters, degree_corrected,
-                          degree_cluster_minus, degree_node, degree_param, is_user_mode)
-    else:
-        return compute_prob_cpu(probs, mhk_minus, frequencies_primary_minus, frequencies_secondary,
-                          y_values, epsilon, a, b, max_clusters, degree_corrected,
-                          degree_cluster_minus, degree_node, degree_param, is_user_mode)
-        
-        
-
 @nb.njit(fastmath=True, parallel=False)
-def compute_prob_cpu(probs, 
+def compute_log_prob(probs, 
                           mhk_minus, 
                           frequencies_primary_minus, 
                           frequencies_secondary,
