@@ -10,76 +10,78 @@ from matplotlib.patches import Rectangle
 # function to plot the heatmap representation
 def plot_heatmap(
     model,
-    user_covariates=None,
-    item_covariates=None,
+    covariates_1=None,
+    covariates_2=None,
     add_labels=True,
     size=(12, 10),
     capped=None,
     save_path=None,
+    bipartite=True
 ):
-    if user_covariates is not None:
-        user_covariates = user_covariates.copy()
-    if item_covariates is not None:
-        item_covariates = item_covariates.copy()
+    if covariates_1 is not None:
+        covariates_1 = covariates_1.copy()
+    if covariates_2 is not None:
+        covariates_2 = covariates_2.copy()
 
-    user_clustering = model.user_clustering.copy()
-    item_clustering = model.item_clustering.copy()
+    clustering_1 = model.clustering_1.copy()
+    clustering_2 = model.clustering_2.copy() if bipartite else model.clustering_1.copy()
+
     Y = model.Y
     if capped is not None:
         Y = np.clip(Y, 0, capped)
 
     # Sort clusters by size
-    user_cluster_sizes = {}
-    for cluster in user_clustering:
-        user_cluster_sizes[cluster] = user_cluster_sizes.get(cluster, 0) + 1
+    cluster_sizes_1 = {}
+    for cluster in clustering_1:
+        cluster_sizes_1[cluster] = cluster_sizes_1.get(cluster, 0) + 1
 
-    item_cluster_sizes = {}
-    for cluster in item_clustering:
-        item_cluster_sizes[cluster] = item_cluster_sizes.get(cluster, 0) + 1
+    cluster_sizes_2 = {}
+    for cluster in clustering_2:
+        cluster_sizes_2[cluster] = cluster_sizes_2.get(cluster, 0) + 1
 
-    sorted_user_clusters = sorted(
-        user_cluster_sizes.keys(), key=lambda x: user_cluster_sizes[x], reverse=True
+    sorted_clusters_1 = sorted(
+        cluster_sizes_1.keys(), key=lambda x: cluster_sizes_1[x], reverse=True
     )
-    sorted_item_clusters = sorted(
-        item_cluster_sizes.keys(), key=lambda x: item_cluster_sizes[x], reverse=True
-    )
-
-    user_cluster_rank = {cluster: i for i, cluster in enumerate(sorted_user_clusters)}
-    item_cluster_rank = {cluster: i for i, cluster in enumerate(sorted_item_clusters)}
-
-    idx_sort_users = sorted(
-        np.arange(Y.shape[0]), key=lambda i: user_cluster_rank[user_clustering[i]]
-    )
-    idx_sort_items = sorted(
-        np.arange(Y.shape[1]), key=lambda i: item_cluster_rank[item_clustering[i]]
+    sorted_clusters_2 = sorted(
+        cluster_sizes_2.keys(), key=lambda x: cluster_sizes_2[x], reverse=True
     )
 
-    sorted_user_clusters_list = [user_clustering[i] for i in idx_sort_users]
-    sorted_item_clusters_list = [item_clustering[i] for i in idx_sort_items]
+    cluster_rank_1 = {cluster: i for i, cluster in enumerate(sorted_clusters_1)}
+    cluster_rank_2 = {cluster: i for i, cluster in enumerate(sorted_clusters_2)}
 
-    user_cluster_boundaries = [0]
-    prev_cluster = sorted_user_clusters_list[0]
-    for i, cluster in enumerate(sorted_user_clusters_list[1:], 1):
+    idx_sort_1 = sorted(
+        np.arange(Y.shape[0]), key=lambda i: cluster_rank_1[clustering_1[i]]
+    )
+    idx_sort_2 = sorted(
+        np.arange(Y.shape[1]), key=lambda i: cluster_rank_2[clustering_2[i]]
+    )
+
+    sorted_cluster_list_1 = [clustering_1[i] for i in idx_sort_1]
+    sorted_cluster_list_2 = [clustering_2[i] for i in idx_sort_2]
+
+    cluster_boundaries_1 = [0]
+    prev_cluster = sorted_cluster_list_1[0]
+    for i, cluster in enumerate(sorted_cluster_list_1[1:], 1):
         if cluster != prev_cluster:
-            user_cluster_boundaries.append(i)
+            cluster_boundaries_1.append(i)
             prev_cluster = cluster
-    user_cluster_boundaries.append(len(sorted_user_clusters_list))
+    cluster_boundaries_1.append(len(sorted_cluster_list_1))
 
-    item_cluster_boundaries = [0]
-    prev_cluster = sorted_item_clusters_list[0]
-    for i, cluster in enumerate(sorted_item_clusters_list[1:], 1):
+    cluster_boundaries_2 = [0]
+    prev_cluster = sorted_cluster_list_2[0]
+    for i, cluster in enumerate(sorted_cluster_list_2[1:], 1):
         if cluster != prev_cluster:
-            item_cluster_boundaries.append(i)
+            cluster_boundaries_2.append(i)
             prev_cluster = cluster
-    item_cluster_boundaries.append(len(sorted_item_clusters_list))
+    cluster_boundaries_2.append(len(sorted_cluster_list_2))
 
     # Create figure with appropriate size and layout for covariates
     fig = plt.figure(figsize=size)
 
     # Set the layout based on whether we have covariates
-    if user_covariates is not None or item_covariates is not None:
-        width_ratios = [0.02, 1] if user_covariates is not None else [0, 1]
-        height_ratios = [1, 0.02] if item_covariates is not None else [1, 0]
+    if covariates_1 is not None or covariates_2 is not None:
+        width_ratios = [0.02, 1] if covariates_1 is not None else [0, 1]
+        height_ratios = [1, 0.02] if covariates_2 is not None else [1, 0]
         gs = fig.add_gridspec(
             2,
             2,
@@ -93,37 +95,48 @@ def plot_heatmap(
         ax_heatmap = fig.add_subplot(gs[0, 1])
 
         # User covariates on the left
-        if user_covariates is not None:
-            ax_user_cov = fig.add_subplot(gs[0, 0], sharey=ax_heatmap)
+        if covariates_1 is not None:
+            ax_cov_1 = fig.add_subplot(gs[0, 0], sharey=ax_heatmap)
 
         # Item covariates on the bottom
-        if item_covariates is not None:
-            ax_item_cov = fig.add_subplot(gs[1, 1], sharex=ax_heatmap)
+        if covariates_2 is not None:
+            ax_cov_2 = fig.add_subplot(gs[1, 1], sharex=ax_heatmap)
     else:
         ax_heatmap = fig.add_subplot(111)
 
     # Plot main heatmap
+    Y_sorted = Y[idx_sort_1, :][:, idx_sort_2]
+
+    if not bipartite:
+        mask = np.triu(np.ones_like(Y_sorted, dtype=bool))
+    else:
+        mask = None
+
     heatmap = sns.heatmap(
-        Y[idx_sort_users, :][:, idx_sort_items], ax=ax_heatmap, cbar_kws={"shrink": 0.8}
+        Y_sorted,
+        mask=mask,              
+        ax=ax_heatmap,
+        cbar_kws={"shrink": 0.8}
     )
 
     # Add cluster boundaries
-    for boundary in user_cluster_boundaries:
+    for boundary in cluster_boundaries_1:
         ax_heatmap.axhline(y=boundary, color="white", linewidth=2)
-    for boundary in item_cluster_boundaries:
-        ax_heatmap.axvline(x=boundary, color="white", linewidth=2)
+    if bipartite is True:
+        for boundary in cluster_boundaries_2:
+            ax_heatmap.axvline(x=boundary, color="white", linewidth=2)
 
     # Add titles and labels
     # ax_heatmap.set_title('Heatmap with Largest Clusters in Top-Left Corner', fontsize=15, pad=20)
-    ax_heatmap.set_xlabel("Items", fontsize=14, labelpad=20)
-    ax_heatmap.set_ylabel("Users", fontsize=14, labelpad=20)
+    # ax_heatmap.set_xlabel("Items", fontsize=14, labelpad=20)
+    # ax_heatmap.set_ylabel("Users", fontsize=14, labelpad=20)
 
     # Add cluster labels if requested
     if add_labels:
-        for i in range(len(user_cluster_boundaries) - 1):
-            cluster_label = sorted_user_clusters[i]
+        for i in range(len(cluster_boundaries_1) - 1):
+            cluster_label = sorted_clusters_1[i]
             mid_point = (
-                user_cluster_boundaries[i] + user_cluster_boundaries[i + 1]
+                cluster_boundaries_1[i] + cluster_boundaries_1[i + 1]
             ) / 2
             ax_heatmap.text(
                 -0.5,
@@ -133,20 +146,20 @@ def plot_heatmap(
                 horizontalalignment="right",
                 fontsize=12,
             )
-
-        for i in range(len(item_cluster_boundaries) - 1):
-            cluster_label = sorted_item_clusters[i]
-            mid_point = (
-                item_cluster_boundaries[i] + item_cluster_boundaries[i + 1]
-            ) / 2
-            ax_heatmap.text(
-                mid_point,
-                Y.shape[0] + 0.5,
-                f"C{cluster_label}",
-                verticalalignment="top",
-                horizontalalignment="center",
-                fontsize=12,
-            )
+        if bipartite is True:
+            for i in range(len(cluster_boundaries_2) - 1):
+                cluster_label = sorted_clusters_2[i]
+                mid_point = (
+                    cluster_boundaries_2[i] + cluster_boundaries_2[i + 1]
+                ) / 2
+                ax_heatmap.text(
+                    mid_point,
+                    Y.shape[0] + 0.5,
+                    f"C{cluster_label}",
+                    verticalalignment="top",
+                    horizontalalignment="center",
+                    fontsize=12,
+                )
 
     ax_heatmap.tick_params(
         axis="both",
@@ -160,8 +173,8 @@ def plot_heatmap(
     )
 
     # Process and plot user covariates if provided
-    if user_covariates is not None:
-        sorted_user_covs = [user_covariates[i] for i in idx_sort_users]
+    if covariates_1 is not None:
+        sorted_user_covs = [covariates_1[i] for i in idx_sort_1]
 
         # Get unique categories and assign colors
         unique_user_cats = sorted(set(sorted_user_covs))
@@ -176,7 +189,7 @@ def plot_heatmap(
 
         # Plot user covariates with proper alignment
         # The extent parameter is set to match the axis limits of the heatmap
-        user_img = ax_user_cov.imshow(
+        user_img = ax_cov_1.imshow(
             user_cov_matrix,
             aspect="auto",
             origin="upper",
@@ -184,27 +197,27 @@ def plot_heatmap(
             extent=[0, 1, n_users, 0],
         )
 
-        ax_user_cov.set_xticks([])
-        ax_user_cov.set_yticks([])
+        ax_cov_1.set_xticks([])
+        ax_cov_1.set_yticks([])
 
         # Add a legend for user covariates
         user_legend_elements = [
             Rectangle((0, 0), 1, 1, color=user_color_dict[cat], label=str(cat))
             for cat in unique_user_cats
         ]
-        ax_user_cov.legend(
+        ax_cov_1.legend(
             handles=user_legend_elements,
             title="User Covariates",
             bbox_to_anchor=(0.1, 0.1),
             loc="center right",
         )
 
-    if item_covariates is not None:
+    if covariates_2 is not None:
         # Extract covariates for sorted items
-        if isinstance(item_covariates, dict):
-            sorted_item_covs = [item_covariates[i] for i in idx_sort_items]
+        if isinstance(covariates_2, dict):
+            sorted_item_covs = [covariates_2[i] for i in idx_sort_2]
         else:
-            sorted_item_covs = [item_covariates[i] for i in idx_sort_items]
+            sorted_item_covs = [covariates_2[i] for i in idx_sort_2]
 
         # Get unique categories and assign colors
         unique_item_cats = sorted(set(sorted_item_covs))
@@ -220,17 +233,17 @@ def plot_heatmap(
         # Plot item covariates with proper alignment
         # The extent parameter is set to match the axis limits of the heatmap
         heatmap_pos = ax_heatmap.get_position()
-        ax_item_cov.set_position(
+        ax_cov_2.set_position(
             [
                 heatmap_pos.x0,
-                ax_item_cov.get_position().y0,
+                ax_cov_2.get_position().y0,
                 heatmap_pos.width,
-                ax_item_cov.get_position().height,
+                ax_cov_2.get_position().height,
             ]
         )
 
         # Plot item covariates ensuring correct width
-        item_img = ax_item_cov.imshow(
+        item_img = ax_cov_2.imshow(
             item_cov_matrix,
             aspect="auto",
             origin="upper",
@@ -238,14 +251,14 @@ def plot_heatmap(
             extent=[0, n_items, 1, 0],
         )
 
-        ax_item_cov.set_xticks([])
-        ax_item_cov.set_yticks([])
+        ax_cov_2.set_xticks([])
+        ax_cov_2.set_yticks([])
 
         item_legend_elements = [
             Rectangle((0, 0), 1, 1, color=item_color_dict[cat], label=str(cat))
             for cat in unique_item_cats
         ]
-        ax_item_cov.legend(
+        ax_cov_2.legend(
             handles=item_legend_elements,
             title="Item Covariates",
             bbox_to_anchor=(0.25, -5),
