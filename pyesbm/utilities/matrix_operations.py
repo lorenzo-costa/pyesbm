@@ -6,6 +6,10 @@ from scipy import sparse
 
 def compute_mhk(Y, clustering_1, clustering_2):
     """Computes the MHK matrix using (fast) sparse matrix multiplication.
+    
+    Mhk matrix stores the sum of edges between cluster h and cluster k.
+    For unipartite graphs, clustering_1 and clustering_2 should be the same.
+    For bipartite graphs, clustering_1 and clustering_2 should be for different dimensions
 
     Parameters
     ----------
@@ -42,40 +46,23 @@ def compute_mhk(Y, clustering_1, clustering_2):
     mhk = clusters_1.T @ Y @ clusters_2
     return mhk
 
-def compute_yuk(Y, item_clustering, num_clusters_items):
+def compute_y_values(Y, clustering, num_nodes, num_clusters):
     """Computes the YUK matrix.
+    
+    Yuk matrix stores the sum of edges between node u and cluster k.
+    For unipartite graphs, k representes clusters in the same dimension as u so pass
+    clustering, num_nodes and num_clusters for the same dimension.
+    For bipartite graphs, k represents clusters in the opposite dimension as u so pass
+    clustering, num_nodes and num_clusters for the opposite dimension.
 
     Returns
     -------
     yuk : np.array
         YUK matrix
     """
-    # using sparse matrices for speed, this sums up entries of
-    # Y in depending on their block assignment.
-    # y[u,k] is the sum of entries for user u and cluster k (in items)
-    item_clusters = sparse.csr_matrix(
-        (np.ones(item_clustering.shape[0]), (range(item_clustering.shape[0]), item_clustering)),
-        shape=(item_clustering.shape[0], num_clusters_items),
+    clusters = sparse.csr_matrix(
+        (np.ones(num_nodes), (range(num_nodes), clustering)),
+        shape=(num_nodes, num_clusters),
     )
-
-    yuk = Y @ item_clusters
-    return yuk
-
-def compute_yih(Y, num_users, user_clustering, num_clusters_users):
-    """Computes the YIH matrix.
-
-    Returns
-    -------
-    yih : np.array
-        YIH matrix
-    """
-    # using sparse matrices for speed, this sums up entries of
-    # Y in depending on their block assignment.
-    # y[i,h] is the sum of entries for item i and cluster h (in users)
-    user_clusters = sparse.csr_matrix(
-        (np.ones(num_users), (range(num_users), user_clustering)),
-        shape=(num_users, num_clusters_users),
-    )
-
-    yih = Y.T @ user_clusters
-    return yih
+    y_values = Y.T @ clusters
+    return y_values
