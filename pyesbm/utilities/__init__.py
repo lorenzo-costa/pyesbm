@@ -8,8 +8,7 @@ from .vi_functs import minVI
 
 from .matrix_operations import (
     compute_mhk,
-    compute_yuk,
-    compute_yih
+    compute_y_values
 )
 
 from .cluster_processor import ClusterProcessor

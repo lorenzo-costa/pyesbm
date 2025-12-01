@@ -16,7 +16,8 @@ def plot_heatmap(
     size=(12, 10),
     capped=None,
     save_path=None,
-    bipartite=True
+    bipartite=True,
+    triangular_mask=False,
 ):
     if covariates_1 is not None:
         covariates_1 = covariates_1.copy()
@@ -114,7 +115,7 @@ def plot_heatmap(
 
     heatmap = sns.heatmap(
         Y_sorted,
-        mask=mask,              
+        mask=mask if triangular_mask else None,              
         ax=ax_heatmap,
         cbar_kws={"shrink": 0.8}
     )
@@ -125,11 +126,6 @@ def plot_heatmap(
     if bipartite is True:
         for boundary in cluster_boundaries_2:
             ax_heatmap.axvline(x=boundary, color="white", linewidth=2)
-
-    # Add titles and labels
-    # ax_heatmap.set_title('Heatmap with Largest Clusters in Top-Left Corner', fontsize=15, pad=20)
-    # ax_heatmap.set_xlabel("Items", fontsize=14, labelpad=20)
-    # ax_heatmap.set_ylabel("Users", fontsize=14, labelpad=20)
 
     # Add cluster labels if requested
     if add_labels:

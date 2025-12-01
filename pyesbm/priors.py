@@ -128,7 +128,7 @@ class GibbsTypePrior(BasePrior):
                     f"gamma for GN should be in (0, 1). You provided {gamma}"
                 )
 
-    def sample(self, num_nodes, num_clusters, frequencies, **kwargs):
+    def compute_probs(self, num_nodes, num_clusters, frequencies, **kwargs):
         if not isinstance(num_nodes, int):
             raise TypeError(f"num_nodes must be int. You provided {type(num_nodes)}")
         if not isinstance(num_clusters, int):

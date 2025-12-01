@@ -58,7 +58,7 @@ class ClusterProcessor:
         # sequential assignment of clusters
         for i in range(1, num_nodes):
             # prior contribution
-            prior_probs = self.prior.sample(
+            prior_probs = self.prior.compute_probs(
                 num_nodes=current_num_nodes,
                 num_clusters=num_clusters,
                 frequencies=np.array(frequencies),

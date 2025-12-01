@@ -69,6 +69,40 @@ class BetaBernoulli(BaseLikelihood):
         # Implement the Bernoulli likelihood computation
         pass
 
-    def update_steps(self):
+    def update_logits(self):
         # Implement the steps to update the Bernoulli likelihood
+        pass
+
+class PoissonGamma:
+    def __init__(self, shape=1.0, rate=1.0):
+        super().__init__()
+
+        args = {k: v for k, v in locals().items() if k != "self"}
+        self._type_check(**args)
+
+        self.shape = shape
+        self.rate = rate
+
+    def _type_check(self, **kwargs):
+        shape = kwargs.get("shape")
+        rate = kwargs.get("rate")
+        if not isinstance(shape, (int, float)):
+            raise TypeError(
+                f"shape must be int or float. You provided {type(shape)}"
+            )
+        if shape <= 0:
+            raise ValueError(f"shape must be positive. You provided {shape}")
+        if not isinstance(rate, (int, float)):
+            raise TypeError(
+                f"rate must be int or float. You provided {type(rate)}"
+            )
+        if rate <= 0:
+            raise ValueError(f"rate must be positive. You provided {rate}")
+
+    def compute_likelihood(self, Y, clusters_1, clusters_2):
+        # Implement the Poisson likelihood computation
+        pass
+
+    def update_logits(self):
+        # Implement the steps to update the Poisson likelihood
         pass
