@@ -121,7 +121,7 @@ class GibbsTypePrior(BasePrior):
                 )
 
         if scheme_type == "GN":
-            if not isinstance(gamma, float):
+            if not isinstance(gamma, (int, float)):
                 raise TypeError(f"gamma should be a float. You provided {type(gamma)}")
             if gamma <= 0 or gamma >= 1:
                 raise ValueError(
