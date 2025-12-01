@@ -7,8 +7,7 @@ from pyesbm.utilities import (
     compute_co_clustering_matrix,
     minVI,
     compute_mhk,
-    compute_yuk,
-    compute_yih,
+    compute_y_values,
     ClusterProcessor
     
 )
@@ -148,9 +147,161 @@ class BaseESBM(ESBMconfig):
                                      num_clusters=self.num_clusters_2)
 
 
-    def gibbs_step(self):
-        """Performs a Gibbs sampling step."""
-        # do nothing for baseline
+    def gibbs_step(self, side=1):
+        """General template for a Gibbs sampling step."""
+        
+        if side not in [1, 2]:
+            raise ValueError("side must be 1 or 2")
+        
+        frequencies = self.frequencies_1 if side == 1 else self.frequencies_2
+        
+        num_clusters = self.num_clusters_1 if side == 1 else self.num_clusters_2
+        other_side_num_clusters = self.num_clusters_2 if side == 1 else self.num_clusters_1
+        
+        num_nodes = self.num_nodes_1 if side == 1 else self.num_nodes_2
+        other_side_num_nodes = self.num_nodes_2 if side == 1 else self.num_nodes_1
+
+        clustering = self.clustering_1 if side == 1 else self.clustering_2
+        other_side_clustering = self.clustering_2 if side == 1 else self.clustering_1
+
+        covariates = self.covariates_1 if side == 1 else self.covariates_2
+        
+        Y = self.Y
+
+        if self.bipartite is False:
+            y_values = compute_y_values(
+                Y=Y,
+                clustering=clustering,
+                num_nodes=num_nodes,
+                num_clusters=num_clusters,
+            )
+        else:
+            y_values = compute_y_values(
+                Y=Y,
+                clustering=other_side_clustering,
+                num_nodes=other_side_num_nodes,
+                num_clusters=other_side_num_clusters
+                )
+
+        if self.bipartite is False:
+            mhk = compute_mhk(self.Y, clustering, clustering)
+        else:
+            mhk = compute_mhk(self.Y, clustering, other_side_clustering)
+        
+        
+        if covariates is not None:
+            nch = covariates.get_nch()
+        else:
+            nch = None
+        
+        for i in range(num_nodes):
+            if self.verbose is True:
+                print(f"Processing node {i} on side {side}")
+            
+            current_cluster = clustering[i]
+            frequencies_minus = frequencies.copy()
+            
+            # remove node from its current cluster
+            frequencies_minus[current_cluster] -= 1
+            frequencies[current_cluster] -= 1
+            
+            if nch is not None:
+                nch_minus = []
+                for cov in range(len(nch)):
+                    c = covariates.cov_values[cov][i]
+                    nch_minus.append(nch[cov].copy())
+                    nch_minus[-1][current_cluster] -= 1
+            
+            # if current cluster becomes empty, remove that row
+            if frequencies_minus[current_cluster] == 0:
+                mhk_minus = np.vstack([mhk[:current_cluster], mhk[current_cluster + 1 :]])
+                frequencies_minus = np.concatenate([frequencies_minus[:current_cluster], 
+                                                    frequencies_minus[current_cluster + 1 :]])
+                num_clusters -= 1
+                
+                if nch is not None:
+                    for cov in range(len(nch)):
+                        nch_minus[cov] = np.vstack([nch_minus[cov][:current_cluster],
+                                                   nch_minus[cov][current_cluster + 1 :]])
+            else:
+                mhk_minus = mhk.copy()
+                mhk_minus[current_cluster] -= y_values[i]
+            
+            # prior contribution
+            prior_probs = self.prior.compute_probs(num_nodes=num_nodes,
+                                                   num_clusters=num_clusters,
+                                                   frequencies=frequencies_minus)
+            # likelihood contribution
+            llk_logits = self.likelihood.update_logits()
+            
+            # covariate contribution
+            cov_logits = 0
+            if nch is not None:
+                cov_logits = covariates.compute_logits(num_nodes=num_nodes,
+                                                       idx=i,
+                                                       frequencies=frequencies_minus,
+                                                       nch=nch_minus)
+            
+            logits = np.log(prior_probs + self.epsilon) + llk_logits + cov_logits
+            probs = np.exp(logits - np.max(logits))
+            probs = probs / np.sum(probs)
+
+            assignment = self.rng.choice(len(probs), p=probs)
+            
+            if self.verbose is True:
+                print(f"Node {i} on side {side} assigned to cluster {assignment}")
+            
+            # if assignement is the same restore quantities
+            if assignment == current_cluster:
+                if frequencies[current_cluster] == 0:
+                    num_clusters += 1
+                frequencies[current_cluster] += 1
+                if self.verbose is True:
+                    print('same cluster, do nothing')
+            # change cluster
+            else:
+                if frequencies[current_cluster]==0:
+                    # maintains cluster indices contiguous
+                    clustering[np.where(clustering >= current_cluster)] -= 1
+                
+                if assignment >= num_clusters:
+                    if self.verbose is True:
+                        print("new cluster created")
+                    clustering[i] = assignment
+                    
+                    num_clusters += 1
+                    frequencies_minus = np.append(frequencies_minus, 1)
+                    
+                    mhk = np.vstack([mhk_minus, y_values[i]])
+                    
+                    if nch is not None:
+                        for cov in range(len(nch)):
+                            c = covariates.cov_values[cov][i]
+                            padding = np.zeros((nch[cov].shape[0], 1))
+                            nch_minus[cov] = np.column_stack([nch_minus[cov], padding])
+                            nch_minus[cov][c,assignment] += 1
+                        nch = nch_minus
+                else:
+                    if self.verbose is True:
+                        print("existing cluster assigned")
+                    frequencies_minus[assignment] += 1
+                    clustering[i] = assignment
+                    mhk_minus[assignment] += y_values[i]
+                    mhk = mhk_minus
+                    
+                    if nch is not None:
+                        for cov in range(len(nch)):
+                            c = covariates.cov_values[cov][i]
+                            nch_minus[cov][c,assignment] += 1
+                        nch = nch_minus
+                    frequencies = frequencies_minus
+                
+        # update class attributes  
+        covariates.nch = nch
+        setattr(self, f'clustering_{side}', clustering)
+        setattr(self, f'frequencies_{side}', frequencies)
+        setattr(self, f'num_clusters_{side}', num_clusters)
+        
         return
 
     def compute_log_likelihood(self):
