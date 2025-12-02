@@ -2,15 +2,21 @@
 likelihoods classes
 """
 
+import numpy as np
+from pyesbm.utilities.numba_functions import update_prob_poissongamma, compute_llk_poisson
+
+
 class BaseLikelihood:
     def __init__(
-        self, bipartite=False, prior_a=1, prior_b=1, eps=1e-10, degree_correction=0
+        self, bipartite=False, epsilon=1e-10, degree_correction=0
     ):
+        
         self.bipartite = bipartite
-        self.prior_a = prior_a
-        self.prior_b = prior_b
-        self.eps = eps
+        self.epsilon = epsilon
         self.degree_correction = degree_correction
+        
+        self._type_check()
+        
 
     def compute_likelihood(self, Y, clusters_1, clusters_2):
         raise NotImplementedError("This method should be implemented by subclasses.")
@@ -23,22 +29,31 @@ class BaseLikelihood:
             raise TypeError(
                 f"bipartite must be a boolean. You provided {type(self.bipartite)}"
             )
-        if not isinstance(self.prior_a, (int, float)):
-            raise TypeError(
-                f"prior_a must be int or float. You provided {type(self.prior_a)}"
-            )
-        if not isinstance(self.prior_b, (int, float)):
-            raise TypeError(
-                f"prior_b must be int or float. You provided {type(self.prior_b)}"
-            )
-        if not isinstance(self.eps, float):
-            raise TypeError(f"eps must be float. You provided {type(self.eps)}")
+        if not isinstance(self.epsilon, float):
+            raise TypeError(f"epsilon must be float. You provided {type(self.epsilon)}")
+        
         if not isinstance(self.degree_correction, int):
             raise TypeError(
                 f"degree_correction must be int. You provided {type(self.degree_correction)}"
             )
 
+class PlaceholderLikelihood(BaseLikelihood):
+    def __init__(self, bipartite=False, eps=1e-10, degree_correction=0, **kwargs):
+        super().__init__(bipartite, eps, degree_correction)
 
+    def compute_llk(self, **kwargs):
+        return 1
+
+    def update_logits(self, 
+                      num_clusters, 
+                      mhk, 
+                      frequencies, 
+                      frequencies_other_side,
+                      y_values):
+    
+        return np.ones(num_clusters)/num_clusters
+    
+    
 class BetaBernoulli(BaseLikelihood):
     def __init__(self, alpha=1.0, beta=1.0):
         super().__init__()
@@ -73,19 +88,10 @@ class BetaBernoulli(BaseLikelihood):
         # Implement the steps to update the Bernoulli likelihood
         pass
 
-class PoissonGamma:
-    def __init__(self, shape=1.0, rate=1.0):
-        super().__init__()
+class PoissonGamma(BaseLikelihood):
+    def __init__(self, shape=1.0, rate=1.0, **kwargs):
+        super().__init__(**kwargs)
 
-        args = {k: v for k, v in locals().items() if k != "self"}
-        self._type_check(**args)
-
-        self.shape = shape
-        self.rate = rate
-
-    def _type_check(self, **kwargs):
-        shape = kwargs.get("shape")
-        rate = kwargs.get("rate")
         if not isinstance(shape, (int, float)):
             raise TypeError(
                 f"shape must be int or float. You provided {type(shape)}"
@@ -99,10 +105,60 @@ class PoissonGamma:
         if rate <= 0:
             raise ValueError(f"rate must be positive. You provided {rate}")
 
-    def compute_likelihood(self, Y, clusters_1, clusters_2):
-        # Implement the Poisson likelihood computation
-        pass
 
-    def update_logits(self):
-        # Implement the steps to update the Poisson likelihood
-        pass
+        self.shape = shape
+        self.rate = rate
+        
+        
+    def compute_llk(self, 
+                    frequencies,
+                    frequencies_other_side, 
+                    mhk,
+                    clustering, 
+                    clustering_other_side):
+        
+        llk = compute_llk_poisson(
+            a=self.shape,
+            b=self.rate,
+            nh=frequencies,
+            nk=frequencies_other_side if self.bipartite else frequencies,
+            eps=self.epsilon,
+            mhk=mhk,
+            clustering_1=clustering,
+            clustering_2=clustering_other_side if self.bipartite else clustering,
+            degree_corrected=False,
+            degree_param_users=1,
+            degree_param_items=1,
+            dg_u=np.array([1]),
+            dg_i=np.array([1]),
+            dg_cl_u=np.array([1]),
+            dg_cl_i=np.array([1]),
+        )
+        return llk
+
+    def update_logits(self, 
+                      num_components,
+                      mhk,
+                      frequencies,
+                      frequencies_other_side,
+                      y_values,
+                      num_clusters
+                      ):
+        
+        out = update_prob_poissongamma(
+            num_components=num_components,
+            mhk=mhk,
+            frequencies_primary=frequencies,
+            frequencies_secondary=frequencies_other_side if self.bipartite else frequencies,
+            y_values=np.ascontiguousarray(y_values), # numba complains otherwise
+            epsilon=self.epsilon,
+            a=self.shape,
+            b=self.rate,
+            max_clusters=num_clusters,
+            degree_corrected=False,
+            degree_param=1,
+            degree_cluster_minus=np.array([1]),
+            degree_node=1,
+        )
+        
+        return out
