@@ -126,11 +126,11 @@ class PoissonGamma(BaseLikelihood):
             a=self.shape,
             b=self.rate,
             nh=frequencies,
-            nk=frequencies_other_side if self.bipartite else frequencies,
+            nk=frequencies_other_side,
             eps=self.epsilon,
             mhk=mhk,
             clustering_1=clustering,
-            clustering_2=clustering_other_side if self.bipartite else clustering,
+            clustering_2=clustering_other_side,
             degree_corrected=False,
             degree_param_users=1,
             degree_param_items=1,
@@ -152,8 +152,6 @@ class PoissonGamma(BaseLikelihood):
                     **kwargs
                       ):
 
-        print(frequencies_other_side_minus)
-        print(frequencies_minus)
         out = update_prob_poissongamma(
             num_components=num_components,
             mhk=mhk_minus,

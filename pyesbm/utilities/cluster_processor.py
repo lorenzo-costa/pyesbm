@@ -49,6 +49,12 @@ class ClusterProcessor:
         num_clusters = 1
         current_num_nodes = 1
         frequencies = [1]
+        
+        computed_quantities = {
+            'num_clusters': num_clusters,
+            'frequencies_minus': frequencies, # for consistency with gibbs step update
+            'num_nodes': current_num_nodes
+        }
 
         if self.verbose is True:
             print("initialsing user clusters random")
@@ -59,9 +65,8 @@ class ClusterProcessor:
         for i in range(1, num_nodes):
             # prior contribution
             prior_probs = self.prior.compute_probs(
-                num_nodes=current_num_nodes,
-                num_clusters=num_clusters,
-                frequencies=np.array(frequencies),
+                model=self,
+                **computed_quantities,
             )
             
             # covariate contribution
@@ -70,7 +75,7 @@ class ClusterProcessor:
                 logits_cov = covariates.compute_logits(
                     num_nodes=current_num_nodes,
                     idx=i,
-                    frequencies=np.array(frequencies))
+                    frequencies_minus=np.array(frequencies))
 
             # convert back using exp and normalise
             logits = np.log(prior_probs + self.epsilon) + logits_cov
@@ -93,6 +98,10 @@ class ClusterProcessor:
 
             clustering.append(assignment)
             current_num_nodes += 1
+            
+            computed_quantities['num_clusters'] = num_clusters
+            computed_quantities['frequencies_minus'] = frequencies
+            computed_quantities['num_nodes'] = current_num_nodes
 
         clustering = np.array(clustering)
 

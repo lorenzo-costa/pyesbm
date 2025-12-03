@@ -128,25 +128,25 @@ class GibbsTypePrior(BasePrior):
                     f"gamma for GN should be in (0, 1). You provided {gamma}"
                 )
 
-    def compute_probs(self, num_nodes, num_clusters, frequencies, **kwargs):
+    def compute_probs(self, num_nodes, num_clusters, frequencies_minus, **kwargs):
         if not isinstance(num_nodes, int):
             raise TypeError(f"num_nodes must be int. You provided {type(num_nodes)}")
         if not isinstance(num_clusters, int):
             raise TypeError(
                 f"num_clusters must be int. You provided {type(num_clusters)}"
             )
-        if not isinstance(frequencies, (list, np.ndarray)):
+        if not isinstance(frequencies_minus, (list, np.ndarray)):
             raise TypeError(
-                f"frequencies must be list or np.ndarray. You provided {type(frequencies)}"
+                f"frequencies must be list or np.ndarray. You provided {type(frequencies_minus)}"
             )
 
-        if not isinstance(frequencies, np.ndarray):
-            frequencies = np.array(frequencies)
+        if not isinstance(frequencies_minus, np.ndarray):
+            frequencies_minus = np.array(frequencies_minus)
 
         out = sampling_scheme(
             V=num_nodes,
             H=num_clusters,
-            frequencies=frequencies,
+            frequencies=frequencies_minus,
             bar_h=self.bar_h,
             scheme_type=self.scheme_dict[self.scheme_type],
             scheme_param=self.scheme_param,

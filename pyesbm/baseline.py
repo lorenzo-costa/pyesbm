@@ -119,9 +119,9 @@ class BaseESBM(ESBMconfig):
                                         rng=self.rng)
         
         cluster_init_1 = cluster_init_1.clustering
+        self._process_clusters(clustering=cluster_init_1, side=1)
         
-        if self.bipartite is True:
-            cluster_init_2 = ClusterProcessor(self.num_nodes_2,
+        cluster_init_2 = ClusterProcessor(self.num_nodes_2,
                                             clustering_2,
                                             self.prior,
                                             covariates=self.covariates_2,
@@ -129,11 +129,7 @@ class BaseESBM(ESBMconfig):
                                             epsilon=self.epsilon,
                                             rng=self.rng)
             
-            cluster_init_2 = cluster_init_2.clustering
-        else:
-            cluster_init_2 = cluster_init_1.copy()
-
-        self._process_clusters(clustering=cluster_init_1, side=1)
+        cluster_init_2 = cluster_init_2.clustering
         self._process_clusters(clustering=cluster_init_2, side=2)
         
 
@@ -186,17 +182,17 @@ class BaseESBM(ESBMconfig):
         for i in range(num_nodes):
             if self.verbose is True:
                 print(f"\nProcessing node {i} on side {side}")
-                print(f"frequencies before removal: {frequencies}")
-                print(f"num_clusters before removal: {num_clusters}")
-                print(f"clustering before removal: {clustering}")
-            
-            
+                print(f"frequencies before removal: {computed_quantities['frequencies']}")
+                print(f"num_clusters before removal: {computed_quantities['num_clusters']}")
+                print(f"clustering before removal: {computed_quantities['clustering']}")
+
             computed_quantities['node_idx'] = i
             computed_quantities['current_cluster'] = clustering[i]
 
             self._remove_node_from_cluster(computed_quantities)                   
             
             # prior contribution
+            
             prior_probs = self.prior.compute_probs(model=self, # pass whole model 
                                                    # pass all quantities (prior will pick only those needed)
                                                    **computed_quantities)
@@ -220,7 +216,7 @@ class BaseESBM(ESBMconfig):
             assignment = self.rng.choice(len(probs), p=probs)
             
             if self.verbose is True:
-                print(f"Node {i} on side {side} assigned to cluster {assignment}, {num_clusters}")
+                print(f"Node {i} on side {side} assigned to cluster {assignment}, {computed_quantities['num_clusters']} clusters now")
             
             self._add_to_cluster(assignment, computed_quantities)
         
@@ -228,6 +224,7 @@ class BaseESBM(ESBMconfig):
         num_clusters = computed_quantities['num_clusters']
         frequencies = computed_quantities['frequencies']
         nch = computed_quantities['nch']
+        
         if nch is not None:
             covariates.nch = nch
         
@@ -245,10 +242,10 @@ class BaseESBM(ESBMconfig):
         float
             Log-likelihood value
         """
-        if self.bipartite is True:
-            mhk = compute_mhk(self.Y, self.clustering_1, self.clustering_2)
-        else:
-            mhk = compute_mhk(self.Y, self.clustering_1, self.clustering_1)
+        # print(self.clustering_1, self.clustering_2)
+        # print(self.frequencies_1, self.frequencies_2)
+        
+        mhk = compute_mhk(self.Y, self.clustering_1, self.clustering_2)
         
         ll = self.likelihood.compute_llk(
             frequencies=self.frequencies_1,
@@ -312,7 +309,9 @@ class BaseESBM(ESBMconfig):
 
         check = time.perf_counter()
         for it in range(n_iters):
-            self.gibbs_step()
+            self.gibbs_step(side=1)
+            if self.bipartite is True:
+                self.gibbs_step(side=2)
             ll = self.compute_log_likelihood()
 
             llks[it + 1] += ll
@@ -451,7 +450,7 @@ class BaseESBM(ESBMconfig):
         est_cluster_1, est_cluster_2 = None, None
         vi_value_1, vi_value_2 = None, None
 
-        cc_matrix_1 = self.compute_co_clustering_matrix(self.mcmc_draws_1[burn_in::thinning])
+        cc_matrix_1 = compute_co_clustering_matrix(self.mcmc_draws_1[burn_in::thinning])
         psm_1 = cc_matrix_1 / np.max(cc_matrix_1)
 
         res_side_1 = minVI(
@@ -475,7 +474,7 @@ class BaseESBM(ESBMconfig):
             return est_cluster_1, vi_value_1
 
         # repeat for other side if bipartite
-        cc_matrix_2 = self.compute_co_clustering_matrix(self.mcmc_draws_2[burn_in::thinning])
+        cc_matrix_2 = compute_co_clustering_matrix(self.mcmc_draws_2[burn_in::thinning])
         psm_items = cc_matrix_2 / np.max(cc_matrix_2)
 
         res_side_2 = minVI(
@@ -659,19 +658,11 @@ class BaseESBM(ESBMconfig):
         frequencies_minus[current_cluster] -= 1
         frequencies[current_cluster] -= 1        
         
-        if self.bipartite is False:
-            frequencies_other_side_minus = frequencies_other_side.copy()
-            frequencies_other_side_minus[current_cluster] -= 1
-        else:
-            frequencies_other_side_minus = frequencies_other_side.copy()
-        
+        frequencies_other_side_minus = frequencies_other_side
         
         if self.likelihood.needs_mhk is True:
             if mhk is None:
-                if self.bipartite is False:
-                    mhk = compute_mhk(self.Y, clustering, clustering)
-                else:
-                    mhk = compute_mhk(self.Y, clustering, clustering_other_side)
+                mhk = compute_mhk(self.Y, clustering, clustering_other_side)
             
         if nch is not None:
             nch_minus = []
@@ -681,49 +672,30 @@ class BaseESBM(ESBMconfig):
                 nch_minus[-1][c, current_cluster] -= 1
         
         if self.likelihood.needs_yvalues is True:
-            if self.bipartite is False:
-                y_values = compute_y_values(
-                    Y=self.Y,
-                    clustering=clustering,
-                    num_nodes=num_nodes,
-                    num_clusters=num_clusters,
+            y_values = compute_y_values(
+                Y=self.Y,
+                clustering=clustering_other_side,
+                num_nodes=num_nodes_other_side,
+                num_clusters=num_clusters_other_side
                 )
-            else:
-                y_values = compute_y_values(
-                    Y=self.Y,
-                    clustering=clustering_other_side,
-                    num_nodes=num_nodes_other_side,
-                    num_clusters=num_clusters_other_side
-                    )
         
         if frequencies_minus[current_cluster] == 0:
             frequencies_minus = np.concatenate([frequencies_minus[:current_cluster], 
                                                     frequencies_minus[current_cluster+1:]])
             num_clusters -= 1
             
-            if self.bipartite is False:
-                frequencies_other_side_minus = np.concatenate([frequencies_other_side_minus[:current_cluster], 
-                                                                frequencies_other_side_minus[current_cluster+1:]])
             if self.likelihood.needs_mhk is True:
                 mhk_minus = np.vstack([mhk[:current_cluster], mhk[current_cluster+1:]])
-                if self.bipartite is False:
-                    mhk_minus = np.hstack([mhk_minus[:,:current_cluster], 
-                                          mhk_minus[:,current_cluster+1:]])
                     
             if nch is not None:
                 for cov in range(len(nch)):
                     nch_minus[cov] = np.hstack([nch[cov][:, :current_cluster],
                                                nch[cov][:, current_cluster+1:]])
-            if self.bipartite is False:
-                if self.likelihood.needs_yvalues is True:
-                    y_values = np.delete(y_values, current_cluster, axis=1)
 
         else:
             if self.likelihood.needs_mhk is True:
                 mhk_minus = mhk.copy()
                 mhk_minus[current_cluster] -= y_values[node_idx]
-                if self.bipartite is False:
-                    mhk_minus[:,current_cluster] -= y_values[node_idx]
 
         computed_quantities['frequencies'] = frequencies
         computed_quantities['frequencies_minus'] = frequencies_minus
@@ -748,6 +720,7 @@ class BaseESBM(ESBMconfig):
         num_clusters = computed_quantities['num_clusters']
         clustering = computed_quantities['clustering']
         node_idx = computed_quantities['node_idx']
+        mhk = computed_quantities['mhk']
         mhk_minus = computed_quantities['mhk_minus']
         y_values = computed_quantities['y_values']
         nch = computed_quantities['nch']
@@ -758,13 +731,12 @@ class BaseESBM(ESBMconfig):
             if frequencies[current_cluster] == 0:
                 num_clusters += 1
             frequencies[current_cluster] += 1
-            if self.bipartite is False:
-                frequencies_other_side[current_cluster] += 1
         # change cluster
         else:
             if frequencies[current_cluster]==0:
                 # maintains cluster indices contiguous
                 clustering[np.where(clustering >= current_cluster)] -= 1
+                #assignment -= 1
             
             if assignment >= num_clusters:
                 clustering[node_idx] = assignment
