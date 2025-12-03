@@ -204,7 +204,7 @@ def update_prob_poissongamma(
             #     h, k = i, j
             # else:
             #     k, h = i, j
-
+            print(mhk, h, k)
             mhk_val = mhk[h, k]
             y_val = y_values[k]
 
