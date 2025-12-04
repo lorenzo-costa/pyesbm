@@ -93,9 +93,58 @@ def compute_llk_poisson(
 
     for h in range(len(nh)):
         for k in range(len(nk)):
-            out += lgamma(mhk[h, k] + a + eps) - (mhk[h, k] + a) * np.log(
-                (nh[h] * nk[k] + b)
-            )
+            out += (
+                lgamma(mhk[h, k] + a + eps) - 
+                (mhk[h, k] + a) * np.log((nh[h] * nk[k] + b))
+                )
+
+    return out
+
+def compute_llk_bernoulli(a,
+    b,
+    nh,
+    nk,
+    eps,
+    mhk,
+    clustering_1,
+    clustering_2,
+    dg_u,
+    dg_i,
+    dg_cl_u,
+    dg_cl_i,
+    degree_param_users=0.5,
+    degree_param_items=0.5,
+    degree_corrected=False,
+    ):
+    
+    """Function to compute log-likelihood of current clustering for Bernoulli likelihood"""
+    out = 0.0
+    if degree_corrected is True:
+        for h in range(len(nh)):
+            idx = np.where(clustering_1 == h)[0]
+            for i in idx:
+                out += lgamma(degree_param_users + dg_u[i] + eps)
+            out -= lgamma(nh[h] * degree_param_users + dg_cl_u[h] + eps)
+            out += dg_cl_u[h] * np.log(nh[h])
+            out += lgamma(nh[h] * degree_param_users)
+            out -= nh[h] * lgamma(degree_param_users)
+
+        for k in range(len(nk)):
+            idx = np.where(clustering_2 == k)[0]
+            for i in idx:
+                out += lgamma(degree_param_items + dg_i[i] + eps)
+            out -= lgamma(nk[k] * degree_param_items + dg_cl_i[k] + eps)
+            out += dg_cl_i[k] * np.log(nk[k])
+            out += lgamma(nk[k] * degree_param_items)
+            out -= nk[k] * lgamma(degree_param_items)
+    
+    for h in range(len(nh)):
+        for k in range(len(nk)):
+            out += (
+                lgamma(mhk[h, k] + a + eps) + 
+                lgamma(nh[h]*nk[k] - mhk[h,k] + b + eps) - 
+                lgamma(nh[h]*nk[k] + a + b)
+                )
 
     return out
 
@@ -171,8 +220,7 @@ def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, 
 # log probability computation for gibbs sampling steps
 #################################
 
-
-#@nb.njit(fastmath=True, parallel=False)
+@nb.njit(fastmath=True, parallel=False)
 def update_prob_poissongamma(
     num_components,
     mhk,
@@ -261,6 +309,80 @@ def update_prob_poissongamma(
                 degree_param + degree_node
             )
 
+    return log_probs
+
+@nb.njit(fastmath=True, parallel=False)
+def update_prob_betabernoulli(
+    num_components,
+    mhk,
+    frequencies_primary,
+    frequencies_secondary,
+    y_values,
+    epsilon,
+    a,
+    b,
+    max_clusters,
+    side,
+    degree_corrected,
+    degree_cluster_minus,
+    degree_node,
+    degree_param,
+):
+    
+    log_probs = np.zeros(num_components)
+    
+    for i in range(max_clusters):
+        p_i = 0.0
+        freq_i = frequencies_primary[i]
+        
+        for j in range(len(frequencies_secondary)):
+            # swap indices based on side (issue with mhk, see compute_mhk for details)
+            if side==1:
+                h, k = i, j
+            else:
+                k, h = i, j
+                
+            mhk_val = mhk[h, k]
+            y_val = y_values[j]
+            freq_j = frequencies_secondary[j]
+
+            mhk_a = mhk_val + a + epsilon
+            mhk_bar_b = freq_i * freq_j - mhk_val + b + epsilon
+
+            mhk_a_y = mhk_a + y_val
+            mhk_bar_b_y = mhk_bar_b + freq_i - y_val
+
+            p_i += (
+                lgamma(mhk_a_y)
+                + lgamma(mhk_bar_b_y)
+                - lgamma(mhk_a_y + mhk_bar_b_y)
+                + lgamma(mhk_a + mhk_bar_b)
+                - lgamma(mhk_a)
+                - lgamma(mhk_bar_b)
+            )
+
+        log_probs[i] += p_i
+
+        if degree_corrected is True:
+            first = lgamma(
+                frequencies_primary[i] * degree_param + degree_cluster_minus[i]
+            )
+            second = lgamma(
+                (frequencies_primary[i] + 1) * degree_param
+                + degree_cluster_minus[i]
+                + degree_node
+            )
+
+            third = lgamma((frequencies_primary[i] + 1) * degree_param)
+            fourth = lgamma(frequencies_primary[i] * degree_param)
+
+            fifth = (degree_cluster_minus[i] + degree_node) * np.log(
+                frequencies_primary[i] + 1
+            )
+            sixth = degree_cluster_minus[i] * np.log(frequencies_primary[i])
+
+            log_probs[i] += first - second + third - fourth + fifth - sixth
+    
     return log_probs
 
 

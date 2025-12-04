@@ -15,8 +15,6 @@ from pyesbm.utilities import (
 from pyesbm.esbm_config import ESBMconfig
 
 
-
-
 #########################################
 # baseline class
 ########################################
