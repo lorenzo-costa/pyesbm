@@ -176,7 +176,8 @@ class BaseESBM(ESBMconfig):
             'covariates': covariates,
             'nch': covariates.get_nch() if covariates is not None else None,
             'mhk':None,
-            'side':side
+            'side':side,
+            'bipartite': self.bipartite
             }
         
         for i in range(num_nodes):

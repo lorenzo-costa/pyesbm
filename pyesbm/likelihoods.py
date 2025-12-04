@@ -194,6 +194,7 @@ class PoissonGamma(BaseLikelihood):
                       frequencies_other_side_minus,
                       num_clusters,
                       side,
+                      bipartite,
                       **kwargs
                       ):
 
@@ -206,6 +207,7 @@ class PoissonGamma(BaseLikelihood):
             epsilon=self.epsilon,
             a=self.shape,
             b=self.rate,
+            bipartite=bipartite,
             max_clusters=num_clusters,
             side=side,
             degree_corrected=False,

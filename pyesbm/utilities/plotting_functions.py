@@ -123,9 +123,8 @@ def plot_heatmap(
     # Add cluster boundaries
     for boundary in cluster_boundaries_1:
         ax_heatmap.axhline(y=boundary, color="white", linewidth=2)
-    if bipartite is True:
-        for boundary in cluster_boundaries_2:
-            ax_heatmap.axvline(x=boundary, color="white", linewidth=2)
+    for boundary in cluster_boundaries_2:
+        ax_heatmap.axvline(x=boundary, color="white", linewidth=2)
 
     # Add cluster labels if requested
     if add_labels:
