@@ -696,7 +696,7 @@ class BaseESBM(ESBMconfig):
         
         if self.likelihood.needs_yvalues is True:
             y_values = compute_y_values(
-                Y=self.Y if side == 1 else self.Y.T,
+                Y=self.Y.T if side == 1 else self.Y,
                 clustering=clustering_other_side,
                 num_nodes=num_nodes_other_side,
                 num_clusters=num_clusters_other_side
