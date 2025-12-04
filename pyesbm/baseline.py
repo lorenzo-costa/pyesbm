@@ -102,11 +102,16 @@ class BaseESBM(ESBMconfig):
             self.rng = rng
 
         if isinstance(clustering, (list, np.ndarray)):
-            clustering_1 = clustering[0]
-            clustering_2 = clustering[1] if self.bipartite is True else None
+            clustering = np.array(clustering)
+            if clustering.ndim > 1:
+                clustering_1 = clustering[0] 
+                clustering_2 = clustering[1]
+            else:
+                clustering_1 = clustering
+                clustering_2 = clustering_1.copy()
         else:
             clustering_1 = clustering
-            clustering_2 = clustering if self.bipartite is True else None
+            clustering_2 = clustering
         
         cluster_init_1 = ClusterProcessor(self.num_nodes_1,
                                         clustering_1,
@@ -475,26 +480,32 @@ class BaseESBM(ESBMconfig):
 
         self.estimation_method = "vi"
 
-        if self.bipartite is False:
-            return est_cluster_1, vi_value_1
+        if self.bipartite is True:
+            # repeat for other side if bipartite
+            cc_matrix_2 = compute_co_clustering_matrix(self.mcmc_draws_2[burn_in::thinning])
+            psm_items = cc_matrix_2 / np.max(cc_matrix_2)
 
-        # repeat for other side if bipartite
-        cc_matrix_2 = compute_co_clustering_matrix(self.mcmc_draws_2[burn_in::thinning])
-        psm_items = cc_matrix_2 / np.max(cc_matrix_2)
+            res_side_2 = minVI(
+                psm_items,
+                cls_draw=self.mcmc_draws_2[burn_in::thinning],
+                method=method,
+                max_k=max_k,
+            )
+            est_cluster_2 = res_side_2["cl"]
+            vi_value_2 = res_side_2["value"]
 
-        res_side_2 = minVI(
-            psm_items,
-            cls_draw=self.mcmc_draws_2[burn_in::thinning],
-            method=method,
-            max_k=max_k,
-        )
-        est_cluster_2 = res_side_2["cl"]
-        vi_value_2 = res_side_2["value"]
-
-        self.clustering_2[:] = est_cluster_2
-        unique_items, frequencies_items = np.unique(est_cluster_2, return_counts=True)
-        self.frequencies_2 = frequencies_items
-        self.num_clusters_2 = len(unique_items)
+            self.clustering_2[:] = est_cluster_2
+            unique_items, frequencies_items = np.unique(est_cluster_2, return_counts=True)
+            self.frequencies_2 = frequencies_items
+            self.num_clusters_2 = len(unique_items)
+        else:
+            est_cluster_2 = est_cluster_1.copy()
+            vi_value_2 = vi_value_1
+            
+            self.clustering_2[:] = est_cluster_2
+            unique_items, frequencies_items = np.unique(est_cluster_2, return_counts=True)
+            self.frequencies_2 = frequencies_items
+            self.num_clusters_2 = len(unique_items)
 
         return est_cluster_1, vi_value_1, est_cluster_2, vi_value_2
 

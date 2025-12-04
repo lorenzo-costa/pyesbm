@@ -18,11 +18,18 @@ def plot_heatmap(
     save_path=None,
     bipartite=True,
     triangular_mask=False,
+    sort_clusters_by_size=None,
 ):
     if covariates_1 is not None:
         covariates_1 = covariates_1.copy()
     if covariates_2 is not None:
         covariates_2 = covariates_2.copy()
+    
+    if sort_clusters_by_size is None:
+        if bipartite is True:
+            sort_clusters_by_size = True
+        else:
+            sort_clusters_by_size = False
 
     clustering_1 = model.clustering_1.copy()
     clustering_2 = model.clustering_2.copy() if bipartite else model.clustering_1.copy()
@@ -32,30 +39,37 @@ def plot_heatmap(
         Y = np.clip(Y, 0, capped)
 
     # Sort clusters by size
-    cluster_sizes_1 = {}
-    for cluster in clustering_1:
-        cluster_sizes_1[cluster] = cluster_sizes_1.get(cluster, 0) + 1
+    if sort_clusters_by_size is True:
+        cluster_sizes_1 = {}
+        for cluster in clustering_1:
+            cluster_sizes_1[cluster] = cluster_sizes_1.get(cluster, 0) + 1
 
-    cluster_sizes_2 = {}
-    for cluster in clustering_2:
-        cluster_sizes_2[cluster] = cluster_sizes_2.get(cluster, 0) + 1
+        cluster_sizes_2 = {}
+        for cluster in clustering_2:
+            cluster_sizes_2[cluster] = cluster_sizes_2.get(cluster, 0) + 1
 
-    sorted_clusters_1 = sorted(
-        cluster_sizes_1.keys(), key=lambda x: cluster_sizes_1[x], reverse=True
-    )
-    sorted_clusters_2 = sorted(
-        cluster_sizes_2.keys(), key=lambda x: cluster_sizes_2[x], reverse=True
-    )
+        sorted_clusters_1 = sorted(
+            cluster_sizes_1.keys(), key=lambda x: cluster_sizes_1[x], reverse=True
+        )
+        sorted_clusters_2 = sorted(
+            cluster_sizes_2.keys(), key=lambda x: cluster_sizes_2[x], reverse=True
+        )
 
-    cluster_rank_1 = {cluster: i for i, cluster in enumerate(sorted_clusters_1)}
-    cluster_rank_2 = {cluster: i for i, cluster in enumerate(sorted_clusters_2)}
+        cluster_rank_1 = {cluster: i for i, cluster in enumerate(sorted_clusters_1)}
+        cluster_rank_2 = {cluster: i for i, cluster in enumerate(sorted_clusters_2)}
 
-    idx_sort_1 = sorted(
-        np.arange(Y.shape[0]), key=lambda i: cluster_rank_1[clustering_1[i]]
-    )
-    idx_sort_2 = sorted(
-        np.arange(Y.shape[1]), key=lambda i: cluster_rank_2[clustering_2[i]]
-    )
+        idx_sort_1 = sorted(
+            np.arange(Y.shape[0]), key=lambda i: cluster_rank_1[clustering_1[i]]
+        )
+        idx_sort_2 = sorted(
+            np.arange(Y.shape[1]), key=lambda i: cluster_rank_2[clustering_2[i]]
+        )
+    else:
+        idx_sort_1 = np.argsort(clustering_1)
+        sorted_clusters_1 = [clustering_1[i] for i in idx_sort_1]
+        
+        idx_sort_2 = np.argsort(clustering_2)
+        sorted_clusters_2 = [clustering_2[i] for i in idx_sort_2]
 
     sorted_cluster_list_1 = [clustering_1[i] for i in idx_sort_1]
     sorted_cluster_list_2 = [clustering_2[i] for i in idx_sort_2]

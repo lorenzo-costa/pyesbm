@@ -261,13 +261,9 @@ def update_prob_poissongamma(
             mhk_plus_a = mhk_val + a_plus_epsilon
             mhk_plus_y_plus_a = mhk_val + y_val + a_plus_epsilon
 
-            if bipartite is True:
-                log_freq_prod1 = np.log(b + freq_i * frequencies_secondary[j])
-                log_freq_prod2 = np.log(b + (freq_i + 1) * frequencies_secondary[j])
-            else:
-                log_freq_prod1 = np.log(b + freq_i * frequencies_secondary[j])
-                log_freq_prod2 = np.log(b + (freq_i + 1) * (frequencies_secondary[j]+1))
-                
+            log_freq_prod1 = np.log(b + freq_i * frequencies_secondary[j])
+            log_freq_prod2 = np.log(b + (freq_i + 1) * frequencies_secondary[j])
+              
             p_i += (
                 lgamma(mhk_plus_y_plus_a)
                 - lgamma(mhk_plus_a)
