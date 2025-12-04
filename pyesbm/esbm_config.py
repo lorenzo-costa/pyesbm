@@ -152,8 +152,8 @@ class ESBMconfig:
                         )
                     else:
                         if (
-                            clustering.shape[0] != num_nodes_1
-                            and clustering.shape[0] != num_nodes_2
+                            clustering[0].shape[0] != num_nodes_1
+                            and clustering[1].shape[0] != num_nodes_2
                         ):
                             raise ValueError(
                                 f"clustering shape must be equal to number of nodes. You provided {clustering.shape} but should be ({num_nodes_1}, ) and ({num_nodes_2}, )"
