@@ -312,6 +312,10 @@ class BaseESBM(ESBMconfig):
             self.gibbs_step(side=1)
             if self.bipartite is True:
                 self.gibbs_step(side=2)
+            else:
+                self.clustering_2 = self.clustering_1.copy()
+                self.frequencies_2 = self.frequencies_1.copy()
+                self.num_clusters_2 = self.num_clusters_1.copy()
             ll = self.compute_log_likelihood()
 
             llks[it + 1] += ll
