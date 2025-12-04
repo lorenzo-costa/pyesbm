@@ -149,7 +149,8 @@ class PoissonGamma(BaseLikelihood):
                       frequencies_minus,
                       frequencies_other_side_minus,
                       num_clusters,
-                    **kwargs
+                      side,
+                      **kwargs
                       ):
 
         out = update_prob_poissongamma(
@@ -162,6 +163,7 @@ class PoissonGamma(BaseLikelihood):
             a=self.shape,
             b=self.rate,
             max_clusters=num_clusters,
+            side=side,
             degree_corrected=False,
             degree_param=1,
             degree_cluster_minus=np.array([1]),

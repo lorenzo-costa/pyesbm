@@ -183,6 +183,7 @@ def update_prob_poissongamma(
     a,
     b,
     max_clusters,
+    side,
     degree_corrected,
     degree_cluster_minus,
     degree_node,
@@ -194,62 +195,64 @@ def update_prob_poissongamma(
     log_b = np.log(b)
     lgamma_a_log_b = -lgamma_a + a * log_b
 
-    for h in range(max_clusters):
-        p_h = 0.0
-        freq_h = frequencies_primary[h]
-        for k in range(len(frequencies_secondary)):
-            
-            # # swap indices based on user/item mode
-            # if is_user_mode:
-            #     h, k = i, j
-            # else:
-            #     k, h = i, j
+    for i in range(max_clusters):
+        p_i = 0.0
+        freq_i = frequencies_primary[i]
+        
+        for j in range(len(frequencies_secondary)):
+            # swap indices based on side (issue with mhk, see compute_mhk for details)
+            if side==1:
+                h, k = i, j
+            else:
+                k, h = i, j
+                
             mhk_val = mhk[h, k]
-            y_val = y_values[k]
+            y_val = y_values[j]
 
             mhk_plus_a = mhk_val + a_plus_epsilon
             mhk_plus_y_plus_a = mhk_val + y_val + a_plus_epsilon
 
-            log_freq_prod1 = np.log(b + freq_h * frequencies_secondary[k])
-            log_freq_prod2 = np.log(b + (freq_h + 1) * frequencies_secondary[k])
-            p_h += (
+            log_freq_prod1 = np.log(b + freq_i * frequencies_secondary[j])
+            log_freq_prod2 = np.log(b + (freq_i + 1) * frequencies_secondary[j])
+            
+            p_i += (
                 lgamma(mhk_plus_y_plus_a)
                 - lgamma(mhk_plus_a)
                 + (mhk_plus_a - epsilon) * log_freq_prod1
                 - (mhk_plus_y_plus_a - epsilon) * log_freq_prod2
             )
 
-        log_probs[h] += p_h
+        log_probs[i] += p_i
 
         if degree_corrected is True:
             first = lgamma(
-                frequencies_primary[h] * degree_param + degree_cluster_minus[h]
+                frequencies_primary[i] * degree_param + degree_cluster_minus[i]
             )
             second = lgamma(
-                (frequencies_primary[h] + 1) * degree_param
-                + degree_cluster_minus[h]
+                (frequencies_primary[i] + 1) * degree_param
+                + degree_cluster_minus[i]
                 + degree_node
             )
 
-            third = lgamma((frequencies_primary[h] + 1) * degree_param)
-            fourth = lgamma(frequencies_primary[h] * degree_param)
+            third = lgamma((frequencies_primary[i] + 1) * degree_param)
+            fourth = lgamma(frequencies_primary[i] * degree_param)
 
-            fifth = (degree_cluster_minus[h] + degree_node) * np.log(
-                frequencies_primary[h] + 1
+            fifth = (degree_cluster_minus[i] + degree_node) * np.log(
+                frequencies_primary[i] + 1
             )
-            sixth = degree_cluster_minus[h] * np.log(frequencies_primary[h])
+            sixth = degree_cluster_minus[i] * np.log(frequencies_primary[i])
 
-            log_probs[h] += first - second + third - fourth + fifth - sixth
+            log_probs[i] += first - second + third - fourth + fifth - sixth
 
     # Handle new cluster case
     if len(log_probs) > max_clusters:
         p_new = 0.0
-        for k in range(len(frequencies_secondary)):
-            y_val = y_values[k]
+        for j in range(len(frequencies_secondary)):
+            y_val = y_values[j]
             p_new += (
                 lgamma(y_val + a_plus_epsilon)
                 + lgamma_a_log_b
-                - (y_val + a) * np.log(b + frequencies_secondary[k])
+                - (y_val + a) * np.log(b + frequencies_secondary[j])
             )
 
         log_probs[max_clusters] += p_new

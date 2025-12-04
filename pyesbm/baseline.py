@@ -121,17 +121,19 @@ class BaseESBM(ESBMconfig):
         cluster_init_1 = cluster_init_1.clustering
         self._process_clusters(clustering=cluster_init_1, side=1)
         
-        cluster_init_2 = ClusterProcessor(self.num_nodes_2,
-                                            clustering_2,
-                                            self.prior,
-                                            covariates=self.covariates_2,
-                                            verbose=self.verbose,
-                                            epsilon=self.epsilon,
-                                            rng=self.rng)
-            
-        cluster_init_2 = cluster_init_2.clustering
-        self._process_clusters(clustering=cluster_init_2, side=2)
-        
+        if self.bipartite is True:
+            cluster_init_2 = ClusterProcessor(self.num_nodes_2,
+                                                clustering_2,
+                                                self.prior,
+                                                covariates=self.covariates_2,
+                                                verbose=self.verbose,
+                                                epsilon=self.epsilon,
+                                                rng=self.rng)
+                
+            cluster_init_2 = cluster_init_2.clustering
+            self._process_clusters(clustering=cluster_init_2, side=2)
+        else:
+            self._process_clusters(clustering=cluster_init_1, side=2)
 
         # if there are covs compute nch
         if self.covariates_1 is not None:
@@ -315,7 +317,7 @@ class BaseESBM(ESBMconfig):
             else:
                 self.clustering_2 = self.clustering_1.copy()
                 self.frequencies_2 = self.frequencies_1.copy()
-                self.num_clusters_2 = self.num_clusters_1.copy()
+                self.num_clusters_2 = self.num_clusters_1
             ll = self.compute_log_likelihood()
 
             llks[it + 1] += ll
@@ -635,6 +637,8 @@ class BaseESBM(ESBMconfig):
         Optionally returns mhk and y_values if needed.
         """
 
+        side = computed_quantities['side']
+        
         node_idx = computed_quantities['node_idx']
         current_cluster = computed_quantities['current_cluster']
         
@@ -665,8 +669,14 @@ class BaseESBM(ESBMconfig):
         frequencies_other_side_minus = frequencies_other_side
         
         if self.likelihood.needs_mhk is True:
+            # in principle compute_mhk() should be called using clustering and other_clustering
+            # since the matrix mhk should be symmetric. 
+            # This however works only if we pass the full adjacency matrix. 
+            # However, for bipartite graph, it is more efficient to pass only one block 
+            # such that we can operate on a smaller matrix.
+            # this requires some care in the updates below.
             if mhk is None:
-                mhk = compute_mhk(self.Y, clustering, clustering_other_side)
+                mhk = compute_mhk(self.Y, self.clustering_1, self.clustering_2)
             
         if nch is not None:
             nch_minus = []
@@ -677,7 +687,7 @@ class BaseESBM(ESBMconfig):
         
         if self.likelihood.needs_yvalues is True:
             y_values = compute_y_values(
-                Y=self.Y,
+                Y=self.Y if side == 1 else self.Y.T,
                 clustering=clustering_other_side,
                 num_nodes=num_nodes_other_side,
                 num_clusters=num_clusters_other_side
@@ -689,7 +699,10 @@ class BaseESBM(ESBMconfig):
             num_clusters -= 1
             
             if self.likelihood.needs_mhk is True:
-                mhk_minus = np.vstack([mhk[:current_cluster], mhk[current_cluster+1:]])
+                if side == 1:
+                    mhk_minus = np.vstack([mhk[:current_cluster], mhk[current_cluster+1:]])
+                else:
+                    mhk_minus = np.hstack([mhk[:, :current_cluster], mhk[:, current_cluster+1:]])
                     
             if nch is not None:
                 for cov in range(len(nch)):
@@ -699,7 +712,10 @@ class BaseESBM(ESBMconfig):
         else:
             if self.likelihood.needs_mhk is True:
                 mhk_minus = mhk.copy()
-                mhk_minus[current_cluster] -= y_values[node_idx]
+                if side == 1:
+                    mhk_minus[current_cluster] -= y_values[node_idx]
+                else:
+                    mhk_minus[:, current_cluster] -= y_values[node_idx]
 
         computed_quantities['frequencies'] = frequencies
         computed_quantities['frequencies_minus'] = frequencies_minus
@@ -724,6 +740,7 @@ class BaseESBM(ESBMconfig):
         num_clusters = computed_quantities['num_clusters']
         clustering = computed_quantities['clustering']
         node_idx = computed_quantities['node_idx']
+        side = computed_quantities['side']
         mhk = computed_quantities['mhk']
         mhk_minus = computed_quantities['mhk_minus']
         y_values = computed_quantities['y_values']
@@ -739,8 +756,8 @@ class BaseESBM(ESBMconfig):
         else:
             if frequencies[current_cluster]==0:
                 # maintains cluster indices contiguous
-                clustering[np.where(clustering >= current_cluster)] -= 1
-                #assignment -= 1
+                mask = np.where(clustering >= current_cluster)
+                clustering[mask] -= 1
             
             if assignment >= num_clusters:
                 clustering[node_idx] = assignment
@@ -748,7 +765,10 @@ class BaseESBM(ESBMconfig):
                 num_clusters += 1
                 frequencies_minus = np.append(frequencies_minus, 1)
                 
-                mhk = np.vstack([mhk_minus, y_values[node_idx]])
+                if side ==1:
+                    mhk = np.vstack([mhk_minus, y_values[node_idx]])
+                else:
+                    mhk = np.column_stack([mhk_minus, y_values[node_idx]])
                 
                 if nch is not None:
                     for cov in range(len(nch)):
@@ -760,7 +780,10 @@ class BaseESBM(ESBMconfig):
             else:
                 frequencies_minus[assignment] += 1
                 clustering[node_idx] = assignment
-                mhk_minus[assignment] += y_values[node_idx]
+                if side ==1:
+                    mhk_minus[assignment] += y_values[node_idx]
+                else:
+                    mhk_minus[:, assignment] += y_values[node_idx]
                 mhk = mhk_minus
                 
                 if nch is not None:
