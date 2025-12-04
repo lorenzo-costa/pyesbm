@@ -133,17 +133,16 @@ class ESBMconfig:
                         f'clustering string value must be "random". You provided {clustering}'
                     )
 
-            elif isinstance(clustering, (np.ndarray, list)):
-                clustering = np.array(clustering)
+            elif isinstance(clustering, np.ndarray):
                 if clustering.ndim == 1:
                     if bipartite is True:
                         raise ValueError(
-                            "for bipartite networks clustering must be a tuple of two lists/arrays"
+                            f"for bipartite networks clustering must be an array of dim (2, {num_nodes_1})"
                         )
                     else:
-                        if len(clustering) != num_nodes_1:
+                        if clustering.shape[0] != num_nodes_1:
                             raise ValueError(
-                                f"clustering length must be equal to number of nodes. You provided {len(clustering)} but should be {num_nodes_1}"
+                                f"clustering length must be equal to number of nodes. You provided {clustering.shape[0]} but should be {num_nodes_1}"
                             )
                 elif clustering.ndim == 2:
                     if bipartite is False:
@@ -162,6 +161,29 @@ class ESBMconfig:
                     raise ValueError(
                         f"clustering array must be 1D or 2D. You provided {clustering.ndim}D array"
                     )
+            
+            elif isinstance(clustering, list):
+                if bipartite is True:
+                    if len(clustering) != 2:
+                        raise ValueError(
+                            "for bipartite networks clustering must be a list of two lists/arrays"
+                        )
+                    else:
+                        clustering[0] = np.array(clustering[0])
+                        clustering[1] = np.array(clustering[1])
+                        
+                        if (
+                            clustering[0].shape[0] != num_nodes_1
+                            and clustering[1].shape[0] != num_nodes_2
+                        ):
+                            raise ValueError(
+                                f"clustering length must be equal to number of nodes. You provided {clustering[0].shape[0]} and {clustering[1].shape[0]} but should be {num_nodes_1} and {num_nodes_2}"
+                            )
+                else:
+                    if len(clustering) != num_nodes_1:
+                        raise ValueError(
+                            f"clustering length must be equal to number of nodes. You provided {len(clustering)} but should be {num_nodes_1}"
+                        )
             else:
                 raise TypeError(
                     f"clustering must be a string, list or array. You provided {type(clustering)}"

@@ -102,12 +102,11 @@ class BaseESBM(ESBMconfig):
             self.rng = rng
 
         if isinstance(clustering, (list, np.ndarray)):
-            clustering = np.array(clustering)
-            if clustering.ndim > 1:
-                clustering_1 = clustering[0] 
-                clustering_2 = clustering[1]
+            if self.bipartite is True:
+                clustering_1 = np.array(clustering[0])
+                clustering_2 = np.array(clustering[1])
             else:
-                clustering_1 = clustering
+                clustering_1 = np.array(clustering)
                 clustering_2 = clustering_1.copy()
         else:
             clustering_1 = clustering
