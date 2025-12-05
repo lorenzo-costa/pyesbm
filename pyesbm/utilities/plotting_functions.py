@@ -5,6 +5,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.patches import Rectangle
+import matplotlib.patheffects as pe
+
+# --- Plotting configuration ---
+
 
 
 # function to plot the heatmap representation
@@ -126,12 +130,17 @@ def plot_heatmap(
         mask = np.triu(np.ones_like(Y_sorted, dtype=bool))
     else:
         mask = None
+    
+    # brute force seaborn not to use white
+    if np.max(Y_sorted) == 1:
+        Y_sorted[0, 0] = 2
 
     heatmap = sns.heatmap(
         Y_sorted,
         mask=mask if triangular_mask else None,              
         ax=ax_heatmap,
-        cbar_kws={"shrink": 0.8}
+        cbar_kws={"shrink": 0.8},
+        cmap="rocket",
     )
 
     # Add cluster boundaries
@@ -155,20 +164,19 @@ def plot_heatmap(
                 horizontalalignment="right",
                 fontsize=12,
             )
-        if bipartite is True:
-            for i in range(len(cluster_boundaries_2) - 1):
-                cluster_label = sorted_clusters_2[i]
-                mid_point = (
-                    cluster_boundaries_2[i] + cluster_boundaries_2[i + 1]
-                ) / 2
-                ax_heatmap.text(
-                    mid_point,
-                    Y.shape[0] + 0.5,
-                    f"C{cluster_label}",
-                    verticalalignment="top",
-                    horizontalalignment="center",
-                    fontsize=12,
-                )
+        for i in range(len(cluster_boundaries_2) - 1):
+            cluster_label = sorted_clusters_2[i]
+            mid_point = (
+                cluster_boundaries_2[i] + cluster_boundaries_2[i + 1]
+            ) / 2
+            ax_heatmap.text(
+                mid_point,
+                Y.shape[0] + 0.5,
+                f"C{cluster_label}",
+                verticalalignment="top",
+                horizontalalignment="center",
+                fontsize=12,
+            )
 
     ax_heatmap.tick_params(
         axis="both",
