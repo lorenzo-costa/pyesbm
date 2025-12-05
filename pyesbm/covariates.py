@@ -4,8 +4,8 @@ Implement different covariate models
 
 # covariates.py
 import numpy as np
-from pyesbm.utilities import compute_log_probs_categorical
-
+from pyesbm.utilities import compute_log_probs
+from scipy.sparse import csr_matrix
 
 class CovariateClass:
     def __init__(self, alpha_c, covariates, num_nodes, cov_names=None):
@@ -47,7 +47,7 @@ class CovariateClass:
         for cov in range(len(self.cov_values)):
             n_unique = len(np.unique(self.cov_values[cov]))
             temp = np.zeros(n_unique)
-            c = self.cov_values[cov][idx]
+            c = np.where(self.cov_values[cov][idx]==1)[0][0]
             temp[int(c)] += 1
             nch[cov] = np.column_stack((nch[cov], temp.reshape(-1, 1)))
 
@@ -58,7 +58,7 @@ class CovariateClass:
     def update_nch(self, idx, new_cluster):
         nch = self.get_nch()
         for cov in range(len(self.cov_values)):
-            c = self.cov_values[cov][idx]
+            c = np.where(self.cov_values[cov][idx]==1)[0][0]
             nch[cov][c, new_cluster] += 1
 
         self.nch = nch
@@ -87,7 +87,7 @@ class CovariateClass:
         if nch_minus is None:
             nch_minus = self.get_nch()
 
-        logits = compute_log_probs_categorical(
+        logits = compute_log_probs(
             num_components=num_components,
             idx=node_idx,
             cov_types=self.cov_types,
@@ -138,21 +138,35 @@ class CovariateClass:
             cov_name, cov_type = name_type[0], name_type[1]
             cov_names.append(cov_name)
             cov_types.append(cov_type)
-            cov_values.append(np.array(cov[1]))
+            
+            num_nodes = len(cov[1])
+            num_classes = np.max(cov[1]) + 1
 
-        self.cov_names = np.array(cov_names)
-        self.cov_types = np.array(cov_types)
-        self.cov_values = np.array(cov_values)
+            temp = np.eye(num_classes)[cov[1]]
+            cov_values.append(temp)
+
+        self.cov_names = cov_names
+        self.cov_types = cov_types
+        self.cov_values = cov_values
 
     def _compute_nch(self, clustering, n_clusters):
         cov_nch = []
         for vals in self.cov_values:
-            uniques = np.unique(vals)
-            nch = np.zeros((len(uniques), n_clusters), dtype=int)
+            n_samples = len(clustering)
+            vals = vals[:n_samples] # when building clustering use only some vals
+            clusters = clustering
+            
+            n_clusters = np.max(clusters) + 1
 
-            for h in range(n_clusters):
-                mask = clustering == h
-                for c in uniques:
-                    nch[int(c), h] = int((vals[mask] == c).sum())
-            cov_nch.append(nch)
-        return np.array(cov_nch)
+            # row indices = sample indices
+            row = np.arange(n_samples)
+            col = clusters
+            data = np.ones(n_samples)
+
+            cluster_indicator = csr_matrix((data, (row, col)),
+                                        shape=(n_samples, n_clusters))
+
+            cov_nch.append(vals.T @ cluster_indicator)
+            
+        
+        return cov_nch

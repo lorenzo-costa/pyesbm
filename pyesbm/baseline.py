@@ -713,7 +713,7 @@ class BaseESBM(ESBMconfig):
         if nch is not None:
             nch_minus = []
             for cov in range(len(nch)):
-                c = covariates.cov_values[cov][node_idx]
+                c = np.where(covariates.cov_values[cov][node_idx]==1)[0][0]
                 nch_minus.append(nch[cov].copy())
                 nch_minus[-1][c, current_cluster] -= 1
 
@@ -817,7 +817,7 @@ class BaseESBM(ESBMconfig):
 
                 if nch is not None:
                     for cov in range(len(nch)):
-                        c = covariates.cov_values[cov][node_idx]
+                        c = np.where(covariates.cov_values[cov][node_idx]==1)[0][0]
                         padding = np.zeros((nch[cov].shape[0], 1))
                         nch_minus[cov] = np.column_stack([nch_minus[cov], padding])
                         nch_minus[cov][c, assignment] += 1
@@ -833,7 +833,7 @@ class BaseESBM(ESBMconfig):
 
                 if nch is not None:
                     for cov in range(len(nch)):
-                        c = covariates.cov_values[cov][node_idx]
+                        c = np.where(covariates.cov_values[cov][node_idx]==1)[0][0]
                         nch_minus[cov][c, assignment] += 1
                     nch = nch_minus
             frequencies = frequencies_minus
