@@ -398,8 +398,8 @@ def update_prob_betabernoulli(
 
 
 @nb.jit(nopython=True)
-def compute_log_probs_cov(
-    probs, idx, cov_types, cov_nch, cov_values, nh, alpha_c, alpha_0
+def compute_log_probs_categorical(
+    num_components, idx, cov_types, cov_nch, cov_values, nh, alpha_c, alpha_0
 ):
     """Numba-optimized function to compute contribution of covariates to log probabilities.
 
@@ -428,13 +428,15 @@ def compute_log_probs_cov(
         log probabilities contribution from covariates
     """
 
-    log_probs = np.zeros_like(probs)
+    log_probs = np.zeros(num_components)
     for i in nb.prange(len(cov_types)):
-        if cov_types[i] == "cat":
+        if cov_types[i] == "categorical":
             c = cov_values[i][idx]
             nch = cov_nch[i]
             for h in range(len(nh)):
                 log_probs[h] += np.log(nch[c, h] + alpha_c[c]) - np.log(nh[h] + alpha_0)
             log_probs[-1] += np.log(alpha_c[c]) - np.log(alpha_0)
+        else:
+            raise NotImplementedError(f"Covariate type {cov_types[i]} not implemented.")
 
     return log_probs

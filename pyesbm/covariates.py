@@ -4,6 +4,7 @@ Implement different covariate models
 
 # covariates.py
 import numpy as np
+from pyesbm.utilities import compute_log_probs_categorical
 
 class CovariateClass:
     def __init__(self, alpha_c, covariates, num_nodes, cov_names=None):
@@ -86,18 +87,18 @@ class CovariateClass:
 
         if nch_minus is None:
             nch_minus = self.get_nch()
+            
+        logits = compute_log_probs_categorical(
+            num_components=num_components,
+            idx=node_idx,
+            cov_types=self.cov_types,
+            cov_nch=nch_minus,
+            cov_values=self.cov_values,
+            nh=frequencies_minus,
+            alpha_c=self.alpha_c,
+            alpha_0=self.alpha_0
+        )
 
-        logits = np.zeros(num_components)
-        
-        for i in range(len(self.cov_types)):
-            if self.cov_types[i]=='categorical':
-                c = self.cov_values[i][node_idx]
-                cov_nch = nch_minus[i]
-                cov_counts_c = cov_nch[c, :]
-                logits[:-1] += np.log(cov_counts_c + self.alpha_c[c]) - np.log(frequencies_minus + self.alpha_0)
-                logits[-1] += np.log(self.alpha_c[c]) - np.log(self.alpha_0)
-            else:
-                raise NotImplementedError(f"Covariate type {self.cov_types[i]} not implemented.")
         return logits
     
     def _arg_validation(self, alpha_c, covariates, num_nodes):
@@ -140,7 +141,7 @@ class CovariateClass:
         for vals in self.cov_values:
             uniques = np.unique(vals)
             nch = np.zeros((len(uniques), n_clusters), dtype=int)
-            # print(nch)
+            
             for h in range(n_clusters):
                 mask = clustering == h
                 for c in uniques:

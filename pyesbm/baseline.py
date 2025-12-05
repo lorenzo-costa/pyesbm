@@ -3,7 +3,6 @@ import numpy as np
 from scipy.stats import mode
 
 from pyesbm.utilities import (
-    compute_log_probs_cov,
     compute_co_clustering_matrix,
     minVI,
     compute_mhk,
