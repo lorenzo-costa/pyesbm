@@ -146,7 +146,7 @@ class BaseESBM(ESBMconfig):
             )
 
         if self.covariates_2 is not None:
-            self.covariate_2.get_nch(
+            self.covariates_2.get_nch(
                 clustering=self.clustering_2, num_clusters=self.num_clusters_2
             )
 

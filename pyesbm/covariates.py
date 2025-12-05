@@ -43,15 +43,15 @@ class CovariateClass:
         return self.nch
 
     def add_cluster(self, idx):
-        nch = list(self.get_nch())
+        nch = self.get_nch()
         for cov in range(len(self.cov_values)):
-            n_unique = len(np.unique(self.cov_values[cov]))
+            n_unique = self.cov_values[cov].shape[1]
             temp = np.zeros(n_unique)
             c = np.where(self.cov_values[cov][idx]==1)[0][0]
             temp[int(c)] += 1
             nch[cov] = np.column_stack((nch[cov], temp.reshape(-1, 1)))
 
-        self.nch = np.array(nch)
+        self.nch = nch
 
         return nch
 
@@ -168,5 +168,4 @@ class CovariateClass:
 
             cov_nch.append(vals.T @ cluster_indicator)
             
-        
         return cov_nch

@@ -65,7 +65,7 @@ class TestComputePriorProbs:
 
         prior = GibbsTypePrior(**params_updated)
 
-        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies=frequencies)
+        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies_minus=frequencies)
         assert np.all(out == (frequencies - params_updated["sigma"]))
         assert (sum(out / sum(out)) - 1) < self.eps
 
@@ -86,7 +86,7 @@ class TestComputePriorProbs:
 
         prior = GibbsTypePrior(**params_updated)
 
-        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies=frequencies)
+        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies_minus=frequencies)
 
         expected = np.append(
             frequencies - params_updated["sigma"],
@@ -111,7 +111,7 @@ class TestComputePriorProbs:
         params_updated["scheme_type"] = "DP"
         prior = GibbsTypePrior(**params_updated)
 
-        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies=frequencies)
+        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies_minus=frequencies)
         expected = np.append(frequencies, params_updated["scheme_param"])
 
         assert np.all(out == expected)
@@ -133,7 +133,7 @@ class TestComputePriorProbs:
 
         prior = GibbsTypePrior(**params_updated)
 
-        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies=frequencies)
+        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies_minus=frequencies)
         expected = np.append(
             frequencies - params_updated["sigma"],
             params_updated["scheme_param"] + params_updated["sigma"] * H,
@@ -156,7 +156,7 @@ class TestComputePriorProbs:
         params_updated = self.params_gn.copy()
         prior = GibbsTypePrior(**params_updated)
 
-        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies=frequencies)
+        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies_minus=frequencies)
 
         expected = np.append(
             (frequencies + 1) * (V - H + params_updated["gamma"]),
@@ -189,10 +189,10 @@ class TestComputePriorProbs:
         prior_dp = GibbsTypePrior(**params_dp)
 
         out_py = prior_py.compute_probs(
-            num_nodes=V, num_clusters=H, frequencies=frequencies
+            num_nodes=V, num_clusters=H, frequencies_minus=frequencies
         )
         out_dp = prior_dp.compute_probs(
-            num_nodes=V, num_clusters=H, frequencies=frequencies
+            num_nodes=V, num_clusters=H, frequencies_minus=frequencies
         )
 
         assert np.all(out_py == out_dp)
