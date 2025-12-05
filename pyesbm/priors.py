@@ -31,6 +31,7 @@ class GibbsTypePrior(BasePrior):
     num_nodes_2 : int
         Number of nodes in the second set (for bipartite graphs).
     """
+
     def __init__(
         self,
         scheme_type=None,
@@ -156,6 +157,7 @@ class GibbsTypePrior(BasePrior):
 
         return out
 
+
 class DirichletMultinomialPrior(GibbsTypePrior):
     """Dirichlet-Multinomial prior for clustering.
 
@@ -168,6 +170,7 @@ class DirichletMultinomialPrior(GibbsTypePrior):
     num_nodes_2 : int
         Number of nodes in the second set (for bipartite graphs).
     """
+
     def __init__(self, bar_h, num_nodes_1, num_nodes_2=None):
         super().__init__(
             scheme_type="DM",
@@ -179,6 +182,7 @@ class DirichletMultinomialPrior(GibbsTypePrior):
             num_nodes_2=num_nodes_2,
         )
 
+
 class DirichletProcess(GibbsTypePrior):
     """Dirichlet Process prior for clustering.
 
@@ -187,6 +191,7 @@ class DirichletProcess(GibbsTypePrior):
     concentration : float
         Concentration parameter for the Dirichlet Process.
     """
+
     def __init__(self, concentration=1.0):
         super().__init__(
             scheme_type="DP",
@@ -198,6 +203,7 @@ class DirichletProcess(GibbsTypePrior):
             num_nodes_2=None,
         )
 
+
 class PitmanYorProcess(GibbsTypePrior):
     """Pitman-Yor Process prior for clustering.
 
@@ -208,6 +214,7 @@ class PitmanYorProcess(GibbsTypePrior):
     scheme_param : float
         Second scheme parameter for the Pitman-Yor Process.
     """
+
     def __init__(self, sigma=0.5, scheme_param=1.0):
         super().__init__(
             scheme_type="PY",
@@ -219,6 +226,7 @@ class PitmanYorProcess(GibbsTypePrior):
             num_nodes_2=None,
         )
 
+
 class GnedinProcess(GibbsTypePrior):
     """Gnedin Process prior for clustering.
 
@@ -227,6 +235,7 @@ class GnedinProcess(GibbsTypePrior):
     gamma : float
         Parameter for the Gnedin Process.
     """
+
     def __init__(self, gamma=0.5):
         super().__init__(
             scheme_type="GN",

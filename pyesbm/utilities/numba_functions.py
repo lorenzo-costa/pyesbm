@@ -93,14 +93,15 @@ def compute_llk_poisson(
 
     for h in range(len(nh)):
         for k in range(len(nk)):
-            out += (
-                lgamma(mhk[h, k] + a + eps) - 
-                (mhk[h, k] + a) * np.log((nh[h] * nk[k] + b))
-                )
+            out += lgamma(mhk[h, k] + a + eps) - (mhk[h, k] + a) * np.log(
+                (nh[h] * nk[k] + b)
+            )
 
     return out
 
-def compute_llk_bernoulli(a,
+
+def compute_llk_bernoulli(
+    a,
     b,
     nh,
     nk,
@@ -115,8 +116,7 @@ def compute_llk_bernoulli(a,
     degree_param_users=0.5,
     degree_param_items=0.5,
     degree_corrected=False,
-    ):
-    
+):
     """Function to compute log-likelihood of current clustering for Bernoulli likelihood"""
     out = 0.0
     if degree_corrected is True:
@@ -137,14 +137,14 @@ def compute_llk_bernoulli(a,
             out += dg_cl_i[k] * np.log(nk[k])
             out += lgamma(nk[k] * degree_param_items)
             out -= nk[k] * lgamma(degree_param_items)
-    
+
     for h in range(len(nh)):
         for k in range(len(nk)):
             out += (
-                lgamma(mhk[h, k] + a + eps) + 
-                lgamma(nh[h]*nk[k] - mhk[h,k] + b + eps) - 
-                lgamma(nh[h]*nk[k] + a + b)
-                )
+                lgamma(mhk[h, k] + a + eps)
+                + lgamma(nh[h] * nk[k] - mhk[h, k] + b + eps)
+                - lgamma(nh[h] * nk[k] + a + b)
+            )
 
     return out
 
@@ -220,6 +220,7 @@ def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, 
 # log probability computation for gibbs sampling steps
 #################################
 
+
 @nb.njit(fastmath=True, parallel=False)
 def update_prob_poissongamma(
     num_components,
@@ -247,14 +248,14 @@ def update_prob_poissongamma(
     for i in range(max_clusters):
         p_i = 0.0
         freq_i = frequencies_primary[i]
-        
+
         for j in range(len(frequencies_secondary)):
             # swap indices based on side (issue with mhk, see compute_mhk for details)
-            if side==1:
+            if side == 1:
                 h, k = i, j
             else:
                 k, h = i, j
-                
+
             mhk_val = mhk[h, k]
             y_val = y_values[j]
 
@@ -263,7 +264,7 @@ def update_prob_poissongamma(
 
             log_freq_prod1 = np.log(b + freq_i * frequencies_secondary[j])
             log_freq_prod2 = np.log(b + (freq_i + 1) * frequencies_secondary[j])
-              
+
             p_i += (
                 lgamma(mhk_plus_y_plus_a)
                 - lgamma(mhk_plus_a)
@@ -312,6 +313,7 @@ def update_prob_poissongamma(
 
     return log_probs
 
+
 @nb.njit(fastmath=True, parallel=False)
 def update_prob_betabernoulli(
     num_components,
@@ -329,27 +331,26 @@ def update_prob_betabernoulli(
     degree_node,
     degree_param,
 ):
-    
     log_probs = np.zeros(num_components)
-    
+
     for i in range(max_clusters):
         p_i = 0.0
         freq_i = frequencies_primary[i]
-        
+
         for j in range(len(frequencies_secondary)):
             # swap indices based on side (issue with mhk, see compute_mhk for details)
-            if side==1:
+            if side == 1:
                 h, k = i, j
             else:
                 k, h = i, j
-            
+
             freq_j = frequencies_secondary[j]
 
             mhk_val = mhk[h, k]
             mhk_bar = freq_i * freq_j - mhk_val
             y_val = y_values[j]
             y_val_bar = freq_j - y_val
-            
+
             mhk_a = mhk_val + a + epsilon
             mhk_bar_b = mhk_bar + b + epsilon
 
@@ -376,13 +377,13 @@ def update_prob_betabernoulli(
             mhk_bar = freq_j
             y_val = y_values[j]
             y_val_bar = freq_j - y_val
-            
+
             mhk_a = a + epsilon
             mhk_bar_b = mhk_bar + b + epsilon
 
             mhk_a_y = mhk_a + y_val
             mhk_bar_b_y = mhk_bar_b + y_val_bar
-            
+
             p_new += (
                 lgamma(mhk_a_y)
                 + lgamma(mhk_bar_b_y)
@@ -393,7 +394,7 @@ def update_prob_betabernoulli(
             )
 
         log_probs[max_clusters] += p_new
-    
+
     return log_probs
 
 

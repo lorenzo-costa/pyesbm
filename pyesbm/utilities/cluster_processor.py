@@ -2,15 +2,16 @@ import numpy as np
 
 
 class ClusterProcessor:
-    def __init__(self, 
-                 num_nodes, 
-                 clustering, 
-                 prior,
-                 covariates=None,
-                 verbose=False,
-                 epsilon=1e-6,
-                 rng=None):
-
+    def __init__(
+        self,
+        num_nodes,
+        clustering,
+        prior,
+        covariates=None,
+        verbose=False,
+        epsilon=1e-6,
+        rng=None,
+    ):
         self.num_nodes = num_nodes
         self.prior = prior
         self.verbose = verbose
@@ -22,7 +23,9 @@ class ClusterProcessor:
             if isinstance(clustering, str):
                 clustering = clustering.lower()
                 if clustering == "random":
-                    self.clustering, _, _ = self._init_cluster_random(num_nodes, covariates)
+                    self.clustering, _, _ = self._init_cluster_random(
+                        num_nodes, covariates
+                    )
             else:
                 self.clustering = clustering
         else:
@@ -49,18 +52,22 @@ class ClusterProcessor:
         num_clusters = 1
         current_num_nodes = 1
         frequencies = [1]
-        
+
         computed_quantities = {
-            'num_clusters': num_clusters,
-            'frequencies_minus': frequencies, # for consistency with gibbs step update
-            'num_nodes': current_num_nodes
+            "num_clusters": num_clusters,
+            "frequencies_minus": frequencies,  # for consistency with gibbs step update
+            "num_nodes": current_num_nodes,
         }
 
         if self.verbose is True:
             print("initialsing user clusters random")
 
-        nch = covariates.get_nch(clustering, num_clusters) if covariates is not None else None
-    
+        nch = (
+            covariates.get_nch(clustering, num_clusters)
+            if covariates is not None
+            else None
+        )
+
         # sequential assignment of clusters
         for i in range(1, num_nodes):
             # prior contribution
@@ -68,14 +75,15 @@ class ClusterProcessor:
                 model=self,
                 **computed_quantities,
             )
-            
+
             # covariate contribution
             logits_cov = 0
             if nch is not None:
                 logits_cov = covariates.compute_logits(
                     num_components=len(prior_probs),
                     node_idx=i,
-                    frequencies_minus=np.array(frequencies))
+                    frequencies_minus=np.array(frequencies),
+                )
 
             # convert back using exp and normalise
             logits = np.log(prior_probs + self.epsilon) + logits_cov
@@ -98,10 +106,10 @@ class ClusterProcessor:
 
             clustering.append(assignment)
             current_num_nodes += 1
-            
-            computed_quantities['num_clusters'] = num_clusters
-            computed_quantities['frequencies_minus'] = frequencies
-            computed_quantities['num_nodes'] = current_num_nodes
+
+            computed_quantities["num_clusters"] = num_clusters
+            computed_quantities["frequencies_minus"] = frequencies
+            computed_quantities["num_nodes"] = current_num_nodes
 
         clustering = np.array(clustering)
 

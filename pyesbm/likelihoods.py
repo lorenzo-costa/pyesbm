@@ -9,16 +9,13 @@ from pyesbm.utilities.numba_functions import update_prob_betabernoulli
 from pyesbm.utilities.numba_functions import compute_llk_poisson
 from pyesbm.utilities.numba_functions import compute_llk_bernoulli
 
+
 class BaseLikelihood:
-    def __init__(
-        self, epsilon=1e-10, degree_correction=0
-    ):
-        
+    def __init__(self, epsilon=1e-10, degree_correction=0):
         self.epsilon = epsilon
         self.degree_correction = degree_correction
-        
+
         self._type_check()
-        
 
     def compute_likelihood(self, Y, clusters_1, clusters_2):
         raise NotImplementedError("This method should be implemented by subclasses.")
@@ -29,47 +26,39 @@ class BaseLikelihood:
     def _type_check(self):
         if not isinstance(self.epsilon, float):
             raise TypeError(f"epsilon must be float. You provided {type(self.epsilon)}")
-        
+
         if not isinstance(self.degree_correction, int):
             raise TypeError(
                 f"degree_correction must be int. You provided {type(self.degree_correction)}"
             )
 
+
 class PlaceholderLikelihood(BaseLikelihood):
     def __init__(self, bipartite=False, eps=1e-10, degree_correction=0, **kwargs):
         super().__init__(bipartite, eps, degree_correction)
-        
+
         self.needs_mhk = False
         self.needs_yvalues = False
 
     def compute_llk(self, **kwargs):
         return 1
 
-    def update_logits(self, 
-                      num_clusters, 
-                      mhk, 
-                      frequencies, 
-                      frequencies_other_side,
-                      y_values,
-                      **kwargs):
-    
-        return np.ones(num_clusters)/num_clusters
-    
-    
+    def update_logits(
+        self, num_clusters, mhk, frequencies, frequencies_other_side, y_values, **kwargs
+    ):
+        return np.ones(num_clusters) / num_clusters
+
+
 class BetaBernoulli(BaseLikelihood):
     def __init__(self, alpha=1.0, beta=1.0):
         super().__init__()
-        
+
         if not isinstance(alpha, (int, float)):
-            raise TypeError(
-                f"alpha must be int or float. You provided {type(alpha)}"
-            )
+            raise TypeError(f"alpha must be int or float. You provided {type(alpha)}")
         if alpha <= 0:
             raise ValueError(f"alpha must be positive. You provided {alpha}")
         if not isinstance(beta, (int, float)):
-            raise TypeError(
-                f"beta must be int or float. You provided {type(beta)}"
-            )
+            raise TypeError(f"beta must be int or float. You provided {type(beta)}")
         if beta <= 0:
             raise ValueError(f"beta must be positive. You provided {beta}")
 
@@ -78,14 +67,15 @@ class BetaBernoulli(BaseLikelihood):
         self.needs_mhk = True
         self.needs_yvalues = True
 
-    def compute_llk(self, 
-                    frequencies,
-                    frequencies_other_side, 
-                    mhk,
-                    clustering, 
-                    clustering_other_side,
-                    **kwargs):
-        
+    def compute_llk(
+        self,
+        frequencies,
+        frequencies_other_side,
+        mhk,
+        clustering,
+        clustering_other_side,
+        **kwargs,
+    ):
         llk = compute_llk_bernoulli(
             a=self.alpha,
             b=self.beta,
@@ -105,22 +95,24 @@ class BetaBernoulli(BaseLikelihood):
         )
         return llk
 
-    def update_logits(self, 
-                      num_components,
-                      mhk_minus,
-                      y_values,
-                      node_idx,
-                      frequencies_minus,
-                      frequencies_other_side_minus,
-                      num_clusters,
-                      side,
-                      **kwargs
-                      ):
-        
+    def update_logits(
+        self,
+        num_components,
+        mhk_minus,
+        y_values,
+        node_idx,
+        frequencies_minus,
+        frequencies_other_side_minus,
+        num_clusters,
+        side,
+        **kwargs,
+    ):
         out = update_prob_betabernoulli(
             num_components=num_components,
             mhk=mhk_minus,
-            y_values=np.ascontiguousarray(y_values[node_idx]), # numba complains otherwise
+            y_values=np.ascontiguousarray(
+                y_values[node_idx]
+            ),  # numba complains otherwise
             frequencies_primary=frequencies_minus,
             frequencies_secondary=frequencies_other_side_minus,
             max_clusters=num_clusters,
@@ -133,23 +125,20 @@ class BetaBernoulli(BaseLikelihood):
             a=self.alpha,
             b=self.beta,
         )
-        
+
         return out
+
 
 class PoissonGamma(BaseLikelihood):
     def __init__(self, shape=1.0, rate=1.0, **kwargs):
         super().__init__(**kwargs)
 
         if not isinstance(shape, (int, float)):
-            raise TypeError(
-                f"shape must be int or float. You provided {type(shape)}"
-            )
+            raise TypeError(f"shape must be int or float. You provided {type(shape)}")
         if shape <= 0:
             raise ValueError(f"shape must be positive. You provided {shape}")
         if not isinstance(rate, (int, float)):
-            raise TypeError(
-                f"rate must be int or float. You provided {type(rate)}"
-            )
+            raise TypeError(f"rate must be int or float. You provided {type(rate)}")
         if rate <= 0:
             raise ValueError(f"rate must be positive. You provided {rate}")
 
@@ -157,15 +146,16 @@ class PoissonGamma(BaseLikelihood):
         self.rate = rate
         self.needs_mhk = True
         self.needs_yvalues = True
-        
-    def compute_llk(self, 
-                    frequencies,
-                    frequencies_other_side, 
-                    mhk,
-                    clustering, 
-                    clustering_other_side,
-                    **kwargs):
-        
+
+    def compute_llk(
+        self,
+        frequencies,
+        frequencies_other_side,
+        mhk,
+        clustering,
+        clustering_other_side,
+        **kwargs,
+    ):
         llk = compute_llk_poisson(
             a=self.shape,
             b=self.rate,
@@ -185,25 +175,27 @@ class PoissonGamma(BaseLikelihood):
         )
         return llk
 
-    def update_logits(self, 
-                      num_components,
-                      mhk_minus,
-                      y_values,
-                      node_idx,
-                      frequencies_minus,
-                      frequencies_other_side_minus,
-                      num_clusters,
-                      side,
-                      bipartite,
-                      **kwargs
-                      ):
-
+    def update_logits(
+        self,
+        num_components,
+        mhk_minus,
+        y_values,
+        node_idx,
+        frequencies_minus,
+        frequencies_other_side_minus,
+        num_clusters,
+        side,
+        bipartite,
+        **kwargs,
+    ):
         out = update_prob_poissongamma(
             num_components=num_components,
             mhk=mhk_minus,
             frequencies_primary=frequencies_minus,
             frequencies_secondary=frequencies_other_side_minus,
-            y_values=np.ascontiguousarray(y_values[node_idx]), # numba complains otherwise
+            y_values=np.ascontiguousarray(
+                y_values[node_idx]
+            ),  # numba complains otherwise
             epsilon=self.epsilon,
             a=self.shape,
             b=self.rate,
@@ -215,5 +207,5 @@ class PoissonGamma(BaseLikelihood):
             degree_cluster_minus=np.array([1]),
             degree_node=1,
         )
-        
+
         return out

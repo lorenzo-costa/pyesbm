@@ -3,23 +3,24 @@ import numpy as np
 from pyesbm.priors import BasePrior
 from pyesbm.covariates import CovariateClass
 
+
 class ESBMconfig:
-    def __init__(self,
-            Y,
-            likelihood,
-            prior,
-            *,
-            bipartite=True,
-            clustering=None,
-            degree_correction=0,
-            alpha_c=1,
-            covariates_1=None,
-            covariates_2=None,
-            epsilon=1e-6,
-            rng=None,
-            verbose=False,
-        ):
-        
+    def __init__(
+        self,
+        Y,
+        likelihood,
+        prior,
+        *,
+        bipartite=True,
+        clustering=None,
+        degree_correction=0,
+        alpha_c=1,
+        covariates_1=None,
+        covariates_2=None,
+        epsilon=1e-6,
+        rng=None,
+        verbose=False,
+    ):
         self._type_check(
             Y=Y,
             likelihood=likelihood,
@@ -32,7 +33,7 @@ class ESBMconfig:
             covariates_2=covariates_2,
             epsilon=epsilon,
             rng=rng,
-            verbose=verbose
+            verbose=verbose,
         )
 
         self._process_args(
@@ -47,27 +48,26 @@ class ESBMconfig:
             covariates_2=covariates_2,
             epsilon=epsilon,
             rng=rng,
-            verbose=verbose
+            verbose=verbose,
         )
 
-    def _type_check(self,
-                    Y,
-                    likelihood,
-                    prior,
-                    bipartite,
-                    clustering,
-                    degree_correction,
-                    alpha_c,
-                    covariates_1,
-                    covariates_2,
-                    epsilon,
-                    rng,
-                    verbose):
-        
+    def _type_check(
+        self,
+        Y,
+        likelihood,
+        prior,
+        bipartite,
+        clustering,
+        degree_correction,
+        alpha_c,
+        covariates_1,
+        covariates_2,
+        epsilon,
+        rng,
+        verbose,
+    ):
         if not isinstance(Y, (np.ndarray, list)):
-            raise TypeError(
-                f"Y must be a numpy array or list. You provided {type(Y)}"
-            )
+            raise TypeError(f"Y must be a numpy array or list. You provided {type(Y)}")
         if not isinstance(bipartite, bool):
             raise TypeError(
                 f"bipartite must be a boolean. You provided {type(bipartite)}"
@@ -109,7 +109,7 @@ class ESBMconfig:
             raise TypeError(
                 f"degree_correction must be int or float. You provided {type(degree_correction)}"
             )
-        
+
         if not isinstance(bipartite, bool):
             raise TypeError(
                 f"bipartite must be boolean. You provided {type(bipartite)}"
@@ -161,7 +161,7 @@ class ESBMconfig:
                     raise ValueError(
                         f"clustering array must be 1D or 2D. You provided {clustering.ndim}D array"
                     )
-            
+
             elif isinstance(clustering, list):
                 if bipartite is True:
                     if len(clustering) != 2:
@@ -171,7 +171,7 @@ class ESBMconfig:
                     else:
                         clustering[0] = np.array(clustering[0])
                         clustering[1] = np.array(clustering[1])
-                        
+
                         if (
                             clustering[0].shape[0] != num_nodes_1
                             and clustering[1].shape[0] != num_nodes_2
@@ -194,21 +194,22 @@ class ESBMconfig:
                 raise TypeError(
                     "rng must be a numpy random Generator or an integer seed"
                 )
-    
-    def _process_args(self,
-                    Y,
-                    likelihood,
-                    prior,
-                    bipartite,
-                    clustering,
-                    degree_correction,
-                    alpha_c,
-                    covariates_1,
-                    covariates_2,
-                    epsilon,
-                    rng,
-                    verbose):
-        
+
+    def _process_args(
+        self,
+        Y,
+        likelihood,
+        prior,
+        bipartite,
+        clustering,
+        degree_correction,
+        alpha_c,
+        covariates_1,
+        covariates_2,
+        epsilon,
+        rng,
+        verbose,
+    ):
         self.Y = Y
         self.prior = prior
         self.likelihood = likelihood
@@ -222,7 +223,7 @@ class ESBMconfig:
         self.covariates_1 = None
         if covariates_1 is not None:
             self.covariates_1 = CovariateClass(alpha_c, covariates_1, self.num_nodes_1)
-        
+
         self.covariates_2 = None
         if covariates_2 is not None:
             self.covariates_2 = CovariateClass(alpha_c, covariates_2, self.num_nodes_2)

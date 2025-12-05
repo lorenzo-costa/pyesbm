@@ -1,12 +1,14 @@
 """
 Auxiliary matrix operations for pyesbm.
 """
+
 import numpy as np
 from scipy import sparse
 
+
 def compute_mhk(Y, clustering_1, clustering_2):
     """Computes the MHK matrix using (fast) sparse matrix multiplication.
-    
+
     Mhk matrix stores the sum of edges between cluster h and cluster k.
     For unipartite graphs, clustering_1 and clustering_2 should be the same.
     For bipartite graphs, clustering_1 and clustering_2 should be for different dimensions
@@ -46,9 +48,10 @@ def compute_mhk(Y, clustering_1, clustering_2):
     mhk = clusters_1.T @ Y @ clusters_2
     return mhk
 
+
 def compute_y_values(Y, clustering, num_nodes, num_clusters):
     """Computes the YUK matrix.
-    
+
     Yuk matrix stores the sum of edges between node u and cluster k.
     For unipartite graphs, k representes clusters in the same dimension as u so pass
     clustering, num_nodes and num_clusters for the same dimension.

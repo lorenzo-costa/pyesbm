@@ -13,21 +13,36 @@ import pytest
 class TestComputePriorProbs:
     # base set
     params_dm = {
-       'bar_h': 10, 'scheme_type': 'DM',
-        'scheme_param': 4, 'sigma': -1, 'gamma': 1}
+        "bar_h": 10,
+        "scheme_type": "DM",
+        "scheme_param": 4,
+        "sigma": -1,
+        "gamma": 1,
+    }
 
     params_dp = {
-        'bar_h': 10, 'scheme_type': 'DP',
-        'scheme_param': 1, 'sigma': 0, 'gamma': 1}
-    
+        "bar_h": 10,
+        "scheme_type": "DP",
+        "scheme_param": 1,
+        "sigma": 0,
+        "gamma": 1,
+    }
+
     params_py = {
-        'bar_h': 10, 'scheme_type': 'PY',
-        'scheme_param': 1, 'sigma': 0.5, 'gamma': 1}
-    
+        "bar_h": 10,
+        "scheme_type": "PY",
+        "scheme_param": 1,
+        "sigma": 0.5,
+        "gamma": 1,
+    }
+
     params_gn = {
-        'bar_h': 10, 'scheme_type': 'GN',
-        'scheme_param': 0.5, 'sigma': -1, 'gamma': 0.5}
-    
+        "bar_h": 10,
+        "scheme_type": "GN",
+        "scheme_param": 0.5,
+        "sigma": -1,
+        "gamma": 0.5,
+    }
 
     eps = 1e-6
 
@@ -44,15 +59,13 @@ class TestComputePriorProbs:
     def test_DM_scheme_no_new_cluster(self, V, frequencies, H):
         """Test that DM scheme does not create new cluster when bar_h=H."""
         params_updated = self.params_dm.copy()
-        params_updated['scheme_type'] = 'DM'
-        params_updated['num_nodes_1'] = V
-        params_updated['bar_h'] = H
+        params_updated["scheme_type"] = "DM"
+        params_updated["num_nodes_1"] = V
+        params_updated["bar_h"] = H
 
         prior = GibbsTypePrior(**params_updated)
 
-        out = prior.compute_probs(
-            num_nodes=V, num_clusters=H, frequencies=frequencies
-        )
+        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies=frequencies)
         assert np.all(out == (frequencies - params_updated["sigma"]))
         assert (sum(out / sum(out)) - 1) < self.eps
 
@@ -67,16 +80,14 @@ class TestComputePriorProbs:
     def test_DM_scheme_new_cluster(self, V, frequencies, H, bar_h):
         """Test that DM scheme creates new cluster when bar_h>H."""
         params_updated = self.params_dm.copy()
-        params_updated['scheme_type'] = 'DM'
-        params_updated['num_nodes_1'] = V
-        params_updated['bar_h'] = bar_h
-        
+        params_updated["scheme_type"] = "DM"
+        params_updated["num_nodes_1"] = V
+        params_updated["bar_h"] = bar_h
+
         prior = GibbsTypePrior(**params_updated)
 
-        out = prior.compute_probs(
-            num_nodes=V, num_clusters=H, frequencies=frequencies
-        )
-        
+        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies=frequencies)
+
         expected = np.append(
             frequencies - params_updated["sigma"],
             -params_updated["sigma"] * (bar_h - H),
@@ -100,9 +111,7 @@ class TestComputePriorProbs:
         params_updated["scheme_type"] = "DP"
         prior = GibbsTypePrior(**params_updated)
 
-        out = prior.compute_probs(
-            num_nodes=V, num_clusters=H, frequencies=frequencies
-        )
+        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies=frequencies)
         expected = np.append(frequencies, params_updated["scheme_param"])
 
         assert np.all(out == expected)
@@ -124,9 +133,7 @@ class TestComputePriorProbs:
 
         prior = GibbsTypePrior(**params_updated)
 
-        out = prior.compute_probs(
-            num_nodes=V, num_clusters=H, frequencies=frequencies
-        )
+        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies=frequencies)
         expected = np.append(
             frequencies - params_updated["sigma"],
             params_updated["scheme_param"] + params_updated["sigma"] * H,
@@ -149,13 +156,10 @@ class TestComputePriorProbs:
         params_updated = self.params_gn.copy()
         prior = GibbsTypePrior(**params_updated)
 
-        out = prior.compute_probs(
-            num_nodes=V, num_clusters=H, frequencies=frequencies
-        )
+        out = prior.compute_probs(num_nodes=V, num_clusters=H, frequencies=frequencies)
 
         expected = np.append(
-            (frequencies + 1)
-            * (V - H + params_updated["gamma"]),
+            (frequencies + 1) * (V - H + params_updated["gamma"]),
             H * (H - params_updated["gamma"]),
         )
         assert np.all(out == expected)
@@ -180,7 +184,7 @@ class TestComputePriorProbs:
 
         params_dp = self.params_dp.copy()
         params_dp["scheme_type"] = "DP"
-        
+
         prior_py = GibbsTypePrior(**params_py)
         prior_dp = GibbsTypePrior(**params_dp)
 

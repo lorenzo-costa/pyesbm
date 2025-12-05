@@ -9,20 +9,20 @@ import matplotlib.patheffects as pe
 
 # --- Plotting configuration ---
 rcparams = {
-    'font.family': 'serif',
-    'text.usetex': True,
-    'font.serif': ['Computer Modern Roman'],
-    'font.size': 9,
-    'figure.titlesize': 11,
-    'legend.fontsize': 10,
-    'legend.title_fontsize': 10.5,
-    'lines.linewidth': 1,
-    'axes.linewidth': 0.5,
-    'axes.facecolor': 'white',
-    'axes.grid': False,
-    'lines.markersize': 3,
-    'xtick.labelsize': 8,
-    'ytick.labelsize': 8
+    "font.family": "serif",
+    "text.usetex": True,
+    "font.serif": ["Computer Modern Roman"],
+    "font.size": 9,
+    "figure.titlesize": 11,
+    "legend.fontsize": 10,
+    "legend.title_fontsize": 10.5,
+    "lines.linewidth": 1,
+    "axes.linewidth": 0.5,
+    "axes.facecolor": "white",
+    "axes.grid": False,
+    "lines.markersize": 3,
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
 }
 
 plt.rcParams.update(rcparams)
@@ -43,7 +43,7 @@ def plot_heatmap(
 ):
     if model.covariates_1 is not None:
         covariates_1_name = model.covariates_1.cov_names[0]
-        covariates_1 = model.covariates_1.cov_values[0]        
+        covariates_1 = model.covariates_1.cov_values[0]
     if model.covariates_2 is not None:
         covariates_2_name = model.covariates_2.cov_names[0]
         covariates_2 = model.covariates_2.cov_values[0]
@@ -88,26 +88,25 @@ def plot_heatmap(
             np.arange(Y.shape[1]), key=lambda i: cluster_rank_2[clustering_2[i]]
         )
     else:
-        
         cluster_sizes_1 = {}
         for cluster in clustering_1:
             cluster_sizes_1[cluster] = cluster_sizes_1.get(cluster, 0) + 1
-        
+
         if bipartite:
             cluster_sizes_2 = {}
             for cluster in clustering_2:
                 cluster_sizes_2[cluster] = cluster_sizes_2.get(cluster, 0) + 1
         else:
             cluster_sizes_2 = cluster_sizes_1
-        
+
         sorted_clusters_1 = sorted(
             cluster_sizes_1.keys(), key=lambda x: cluster_sizes_1[x], reverse=True
         )
         sorted_clusters_2 = sorted(
             cluster_sizes_2.keys(), key=lambda x: cluster_sizes_2[x], reverse=True
         )
-            
-        idx_sort_1 = np.argsort(clustering_1)        
+
+        idx_sort_1 = np.argsort(clustering_1)
         idx_sort_2 = np.argsort(clustering_2)
 
     sorted_cluster_list_1 = [clustering_1[i] for i in idx_sort_1]
@@ -165,14 +164,14 @@ def plot_heatmap(
         mask = np.triu(np.ones_like(Y_sorted, dtype=bool))
     else:
         mask = None
-    
+
     # brute force seaborn not to use white
     if np.max(Y_sorted) == 1:
         Y_sorted[0, 0] = 2
 
     heatmap = sns.heatmap(
         Y_sorted,
-        mask=mask if triangular_mask else None,              
+        mask=mask if triangular_mask else None,
         ax=ax_heatmap,
         cbar_kws={"shrink": 0.8},
         cmap="rocket",
@@ -188,35 +187,31 @@ def plot_heatmap(
     if add_labels:
         for i in range(len(cluster_boundaries_1) - 1):
             cluster_label = sorted_clusters_1[i]
-            mid_point = (
-                cluster_boundaries_1[i] + cluster_boundaries_1[i + 1]
-            ) / 2
+            mid_point = (cluster_boundaries_1[i] + cluster_boundaries_1[i + 1]) / 2
             ax_heatmap.text(
-                -0.05,                     # slightly above top edge
-                mid_point / Y.shape[0],   # convert mid_point into [0,1]
+                -0.05,  # slightly above top edge
+                mid_point / Y.shape[0],  # convert mid_point into [0,1]
                 f"C{cluster_label}",
                 transform=ax_heatmap.transAxes,
                 verticalalignment="center",
                 horizontalalignment="right",
                 fontsize=12,
-                zorder=10
+                zorder=10,
             )
         for i in range(len(cluster_boundaries_2) - 1):
             cluster_label = sorted_clusters_2[i]
-            mid_point = (
-                cluster_boundaries_2[i] + cluster_boundaries_2[i + 1]
-            ) / 2
+            mid_point = (cluster_boundaries_2[i] + cluster_boundaries_2[i + 1]) / 2
             ax_heatmap.text(
-                mid_point / Y.shape[1],   # convert mid_point into [0,1]
-                1.05,                     # slightly above top edge
+                mid_point / Y.shape[1],  # convert mid_point into [0,1]
+                1.05,  # slightly above top edge
                 f"C{cluster_label}",
                 transform=ax_heatmap.transAxes,
                 verticalalignment="top",
                 horizontalalignment="center",
                 fontsize=12,
-                zorder=10
+                zorder=10,
             )
-            
+
     ax_heatmap.tick_params(
         axis="both",
         which="both",
