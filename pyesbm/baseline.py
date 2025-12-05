@@ -139,7 +139,7 @@ class BaseESBM(ESBMconfig):
 
         # if there are covs compute nch
         if self.covariates_1 is not None:
-            self.covariate_1.get_nch(clustering=self.clustering_1,
+            self.covariates_1.get_nch(clustering=self.clustering_1,
                                      num_clusters=self.num_clusters_1)
 
         if self.covariates_2 is not None:
@@ -178,7 +178,7 @@ class BaseESBM(ESBMconfig):
             'clustering': clustering,
             'clustering_other_side': clustering_other_side,
             'covariates': covariates,
-            'nch': covariates.get_nch() if covariates is not None else None,
+            'nch': covariates.get_nch(clustering=clustering, num_clusters=num_clusters) if covariates is not None else None,
             'mhk':None,
             'side':side,
             'bipartite': self.bipartite
@@ -190,6 +190,7 @@ class BaseESBM(ESBMconfig):
                 print(f"frequencies before removal: {computed_quantities['frequencies']}")
                 print(f"num_clusters before removal: {computed_quantities['num_clusters']}")
                 print(f"clustering before removal: {computed_quantities['clustering']}")
+                print(f"nch before removal: {computed_quantities['nch']}")
 
             computed_quantities['node_idx'] = i
             computed_quantities['current_cluster'] = clustering[i]
@@ -212,7 +213,10 @@ class BaseESBM(ESBMconfig):
             # covariate contribution
             cov_logits = 0
             if covariates is not None:
-                cov_logits = covariates.compute_logits(**computed_quantities)
+                cov_logits = covariates.compute_logits(
+                    model=self,
+                    num_components=len(prior_probs),
+                    **computed_quantities)
 
             logits = np.log(prior_probs + self.epsilon)+ llk_logits + cov_logits
             probs = np.exp(logits - np.max(logits))

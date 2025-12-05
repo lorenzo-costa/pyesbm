@@ -6,7 +6,7 @@ Implement different covariate models
 import numpy as np
 
 class CovariateClass:
-    def __init__(self, alpha_c, covariates, num_nodes):
+    def __init__(self, alpha_c, covariates, num_nodes, cov_names=None):
         
         self._arg_validation(alpha_c, covariates, num_nodes)
         
@@ -40,14 +40,15 @@ class CovariateClass:
         return self.nch
     
     def add_cluster(self, idx):
-        nch = self.get_nch()
+        nch = list(self.get_nch())
         for cov in range(len(self.cov_values)):
             n_unique = len(np.unique(self.cov_values[cov]))
             temp = np.zeros(n_unique)
             c = self.cov_values[cov][idx]
             temp[int(c)] += 1
-            nch[cov] = np.column_stack((nch[cov], temp))
-        self.nch = nch
+            nch[cov] = np.column_stack((nch[cov], temp.reshape(-1,1)))
+            
+        self.nch = np.array(nch)
         
         return nch
     
@@ -61,10 +62,11 @@ class CovariateClass:
         return nch
 
     def compute_logits(self, 
-                       num_nodes,
-                       idx,  
-                       frequencies,
-                       nch=None):
+                       num_components,
+                       node_idx,  
+                       frequencies_minus,
+                       nch_minus=None,
+                       **kwargs):
         """Compute log probabilities for the covariate part of the likelihood.
 
         Parameters
@@ -81,18 +83,18 @@ class CovariateClass:
         log_probs : array-like
             Log probabilities for each cluster.
         """
-        
-        if nch is None:
-            nch = self.get_nch()
-        
-        logits = np.zeros(num_nodes)
+
+        if nch_minus is None:
+            nch_minus = self.get_nch()
+
+        logits = np.zeros(num_components)
         
         for i in range(len(self.cov_types)):
             if self.cov_types[i]=='categorical':
-                c = self.cov_values[i][idx]
-                cov_nch = nch[i]
+                c = self.cov_values[i][node_idx]
+                cov_nch = nch_minus[i]
                 cov_counts_c = cov_nch[c, :]
-                logits[:-1] += np.log(cov_counts_c + self.alpha_c[c]) - np.log(frequencies + self.alpha_0)
+                logits[:-1] += np.log(cov_counts_c + self.alpha_c[c]) - np.log(frequencies_minus + self.alpha_0)
                 logits[-1] += np.log(self.alpha_c[c]) - np.log(self.alpha_0)
             else:
                 raise NotImplementedError(f"Covariate type {self.cov_types[i]} not implemented.")
@@ -138,6 +140,7 @@ class CovariateClass:
         for vals in self.cov_values:
             uniques = np.unique(vals)
             nch = np.zeros((len(uniques), n_clusters), dtype=int)
+            # print(nch)
             for h in range(n_clusters):
                 mask = clustering == h
                 for c in uniques:

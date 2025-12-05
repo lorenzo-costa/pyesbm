@@ -8,7 +8,24 @@ from matplotlib.patches import Rectangle
 import matplotlib.patheffects as pe
 
 # --- Plotting configuration ---
+rcparams = {
+    'font.family': 'serif',
+    'text.usetex': True,
+    'font.serif': ['Computer Modern Roman'],
+    'font.size': 9,
+    'figure.titlesize': 11,
+    'legend.fontsize': 10,
+    'legend.title_fontsize': 10.5,
+    'lines.linewidth': 1,
+    'axes.linewidth': 0.5,
+    'axes.facecolor': 'white',
+    'axes.grid': False,
+    'lines.markersize': 3,
+    'xtick.labelsize': 8,
+    'ytick.labelsize': 8
+}
 
+plt.rcParams.update(rcparams)
 
 
 # function to plot the heatmap representation
@@ -24,11 +41,13 @@ def plot_heatmap(
     triangular_mask=False,
     sort_clusters_by_size=None,
 ):
-    if covariates_1 is not None:
-        covariates_1 = covariates_1.copy()
-    if covariates_2 is not None:
-        covariates_2 = covariates_2.copy()
-    
+    if model.covariates_1 is not None:
+        covariates_1_name = model.covariates_1.cov_names[0]
+        covariates_1 = model.covariates_1.cov_values[0]        
+    if model.covariates_2 is not None:
+        covariates_2_name = model.covariates_2.cov_names[0]
+        covariates_2 = model.covariates_2.cov_values[0]
+
     if sort_clusters_by_size is None:
         if bipartite is True:
             sort_clusters_by_size = True
@@ -173,9 +192,10 @@ def plot_heatmap(
                 cluster_boundaries_1[i] + cluster_boundaries_1[i + 1]
             ) / 2
             ax_heatmap.text(
-                -0.5,
-                mid_point,
+                -0.05,                     # slightly above top edge
+                mid_point / Y.shape[0],   # convert mid_point into [0,1]
                 f"C{cluster_label}",
+                transform=ax_heatmap.transAxes,
                 verticalalignment="center",
                 horizontalalignment="right",
                 fontsize=12,
@@ -243,7 +263,7 @@ def plot_heatmap(
         ]
         ax_cov_1.legend(
             handles=user_legend_elements,
-            title="User Covariates",
+            title=covariates_1_name,
             bbox_to_anchor=(0.1, 0.1),
             loc="center right",
         )
@@ -296,7 +316,7 @@ def plot_heatmap(
         ]
         ax_cov_2.legend(
             handles=item_legend_elements,
-            title="Item Covariates",
+            title=covariates_2_name,
             bbox_to_anchor=(0.25, -5),
             loc="center right",
         )

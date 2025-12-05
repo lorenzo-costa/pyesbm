@@ -59,7 +59,7 @@ class ClusterProcessor:
         if self.verbose is True:
             print("initialsing user clusters random")
 
-        nch = covariates.get_nch() if covariates is not None else None
+        nch = covariates.get_nch(clustering, num_clusters) if covariates is not None else None
     
         # sequential assignment of clusters
         for i in range(1, num_nodes):
@@ -73,8 +73,8 @@ class ClusterProcessor:
             logits_cov = 0
             if nch is not None:
                 logits_cov = covariates.compute_logits(
-                    num_nodes=current_num_nodes,
-                    idx=i,
+                    num_components=len(prior_probs),
+                    node_idx=i,
                     frequencies_minus=np.array(frequencies))
 
             # convert back using exp and normalise

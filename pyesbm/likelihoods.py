@@ -79,12 +79,12 @@ class BetaBernoulli(BaseLikelihood):
         self.needs_yvalues = True
 
     def compute_llk(self, 
-                            frequencies,
-                            frequencies_other_side, 
-                            mhk,
-                            clustering, 
-                            clustering_other_side,
-                            **kwargs):
+                    frequencies,
+                    frequencies_other_side, 
+                    mhk,
+                    clustering, 
+                    clustering_other_side,
+                    **kwargs):
         
         llk = compute_llk_bernoulli(
             a=self.alpha,
