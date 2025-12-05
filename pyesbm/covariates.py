@@ -142,7 +142,14 @@ class CovariateClass:
             num_nodes = len(cov[1])
             num_classes = np.max(cov[1]) + 1
 
-            temp = np.eye(num_classes)[cov[1]]
+            if cov_type == 'categorical':
+                temp = np.eye(num_classes)[cov[1]]
+            elif cov_type == 'count':
+                temp = np.zeros((num_nodes, num_classes))
+                for i in range(num_nodes):
+                    t = np.zeros(num_classes)
+                    t[:cov[1][i]+1] = 1
+                    temp[i] = t
             cov_values.append(temp)
 
         self.cov_names = cov_names
@@ -151,7 +158,8 @@ class CovariateClass:
 
     def _compute_nch(self, clustering, n_clusters):
         cov_nch = []
-        for vals in self.cov_values:
+        for i in range(len(self.cov_values)):
+            vals = self.cov_values[i]
             n_samples = len(clustering)
             vals = vals[:n_samples] # when building clustering use only some vals
             clusters = clustering
