@@ -148,27 +148,3 @@ class CovariateClass:
                     nch[int(c), h] = int((vals[mask] == c).sum())
             cov_nch.append(nch)
         return np.array(cov_nch)
-       
-
-def compute_logits_categorical(
-    probs, idx, cov_types, cov_nch, cov_values, nh, alpha_c, alpha_0
-):
-    log_probs = np.zeros_like(probs)
-    for i in nb.prange(len(cov_types)):
-        if cov_types[i] == "cat":
-            c = cov_values[i][idx]
-            nch = cov_nch[i]
-            for h in range(len(nh)):
-                log_probs[h] += np.log(nch[c, h] + alpha_c[c]) - np.log(nh[h] + alpha_0)
-            log_probs[-1] += np.log(alpha_c[c]) - np.log(alpha_0)
-
-    return log_probs
-
-    
-    
-        
-
-    
-    
-
-    
