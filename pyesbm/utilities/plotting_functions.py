@@ -69,11 +69,27 @@ def plot_heatmap(
             np.arange(Y.shape[1]), key=lambda i: cluster_rank_2[clustering_2[i]]
         )
     else:
-        idx_sort_1 = np.argsort(clustering_1)
-        sorted_clusters_1 = [clustering_1[i] for i in idx_sort_1]
         
+        cluster_sizes_1 = {}
+        for cluster in clustering_1:
+            cluster_sizes_1[cluster] = cluster_sizes_1.get(cluster, 0) + 1
+        
+        if bipartite:
+            cluster_sizes_2 = {}
+            for cluster in clustering_2:
+                cluster_sizes_2[cluster] = cluster_sizes_2.get(cluster, 0) + 1
+        else:
+            cluster_sizes_2 = cluster_sizes_1
+        
+        sorted_clusters_1 = sorted(
+            cluster_sizes_1.keys(), key=lambda x: cluster_sizes_1[x], reverse=True
+        )
+        sorted_clusters_2 = sorted(
+            cluster_sizes_2.keys(), key=lambda x: cluster_sizes_2[x], reverse=True
+        )
+            
+        idx_sort_1 = np.argsort(clustering_1)        
         idx_sort_2 = np.argsort(clustering_2)
-        sorted_clusters_2 = [clustering_2[i] for i in idx_sort_2]
 
     sorted_cluster_list_1 = [clustering_1[i] for i in idx_sort_1]
     sorted_cluster_list_2 = [clustering_2[i] for i in idx_sort_2]
@@ -163,6 +179,7 @@ def plot_heatmap(
                 verticalalignment="center",
                 horizontalalignment="right",
                 fontsize=12,
+                zorder=10
             )
         for i in range(len(cluster_boundaries_2) - 1):
             cluster_label = sorted_clusters_2[i]
@@ -170,14 +187,16 @@ def plot_heatmap(
                 cluster_boundaries_2[i] + cluster_boundaries_2[i + 1]
             ) / 2
             ax_heatmap.text(
-                mid_point,
-                Y.shape[0] + 0.5,
+                mid_point / Y.shape[1],   # convert mid_point into [0,1]
+                1.05,                     # slightly above top edge
                 f"C{cluster_label}",
+                transform=ax_heatmap.transAxes,
                 verticalalignment="top",
                 horizontalalignment="center",
                 fontsize=12,
+                zorder=10
             )
-
+            
     ax_heatmap.tick_params(
         axis="both",
         which="both",
