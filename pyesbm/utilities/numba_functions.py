@@ -403,11 +403,15 @@ def compute_log_probs(
     num_components, 
     idx, 
     cov_types, 
-    cov_nch, 
+    cov_nch,
+    cov_nch_minus, 
     cov_values, 
     nh,
-    alpha_c, 
-    alpha_0
+    nh_minus,
+    alpha_c, # cannot pass a default because numba does not like None
+    alpha_0,
+    a=1.0,
+    b=1.0
 ):
     """Numba-optimized function to compute contribution of covariates to log probabilities.
 
@@ -438,16 +442,40 @@ def compute_log_probs(
 
     log_probs = np.zeros(num_components)
     for i in nb.prange(len(cov_types)):
+        nch = cov_nch[i]
+        nch_minus = cov_nch_minus[i]
+        
         if cov_types[i] == "categorical":
             c = np.where(cov_values[i][idx]==1)[0][0]
-            nch = cov_nch[i]
-            for h in range(len(nh)):
+            for h in range(len(nh_minus)):
                 c = int(c)
-                log_probs[h] += np.log(nch[c, h] + alpha_c[c]) - np.log(nh[h] + alpha_0)
+                log_probs[h] += (np.log(nch_minus[c, h] + alpha_c[c]) 
+                                 - np.log(nh_minus[h] + alpha_0))
             log_probs[-1] += np.log(alpha_c[c]) - np.log(alpha_0)
+        
         elif cov_types[i] == "count":
+            num_cov_values = nch.shape[0]
             
-            pass
+            my_val = nch * np.arange(num_cov_values).reshape(-1, 1)
+            my_val = my_val.sum(axis=0)
+            
+            my_val_minus = nch_minus * np.arange(num_cov_values).reshape(-1, 1)
+            my_val_minus = my_val_minus.sum(axis=0) 
+
+            for h in range(len(nh_minus)):
+                first = lgamma(a + my_val[h])
+                second = lgamma(a + my_val_minus[h])
+                third = (a + my_val_minus[h]) * np.log(nh_minus[h] + b)
+                fourth = (a + my_val[h]) * np.log(nh[h] + b)
+                
+                log_probs[h] += first - second + third - fourth
+            
+            xi = cov_values[i][idx].sum()
+            first = lgamma(a + xi)
+            second = lgamma(a)
+            third = a * np.log(b)
+            fourth = (a + xi) * np.log(b + 1)
+            log_probs[-1] += first - second + third - fourth
         else:
             raise NotImplementedError(f"Covariate type {cov_types[i]} not implemented.")
 

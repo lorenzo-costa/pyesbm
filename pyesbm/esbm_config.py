@@ -15,6 +15,8 @@ class ESBMconfig:
         clustering=None,
         degree_correction=0,
         alpha_c=1,
+        cov_a=1,
+        cov_b=1,
         covariates_1=None,
         covariates_2=None,
         epsilon=1e-6,
@@ -34,6 +36,8 @@ class ESBMconfig:
             epsilon=epsilon,
             rng=rng,
             verbose=verbose,
+            cov_a=cov_a,
+            cov_b=cov_b,
         )
 
         self._process_args(
@@ -49,6 +53,8 @@ class ESBMconfig:
             epsilon=epsilon,
             rng=rng,
             verbose=verbose,
+            cov_a=cov_a,
+            cov_b=cov_b,
         )
 
     def _type_check(
@@ -65,6 +71,8 @@ class ESBMconfig:
         epsilon,
         rng,
         verbose,
+        cov_a,
+        cov_b,
     ):
         if not isinstance(Y, (np.ndarray, list)):
             raise TypeError(f"Y must be a numpy array or list. You provided {type(Y)}")
@@ -209,6 +217,8 @@ class ESBMconfig:
         epsilon,
         rng,
         verbose,
+        cov_a,
+        cov_b,
     ):
         self.Y = Y
         self.prior = prior
@@ -222,11 +232,17 @@ class ESBMconfig:
 
         self.covariates_1 = None
         if covariates_1 is not None:
-            self.covariates_1 = CovariateClass(alpha_c, covariates_1, self.num_nodes_1)
+            self.covariates_1 = CovariateClass(alpha_c=alpha_c, 
+                                               covariates=covariates_1,
+                                               a=cov_a,
+                                               b=cov_b)
 
         self.covariates_2 = None
         if covariates_2 is not None:
-            self.covariates_2 = CovariateClass(alpha_c, covariates_2, self.num_nodes_2)
+            self.covariates_2 = CovariateClass(alpha_c=alpha_c, 
+                                               covariates=covariates_2,
+                                               a=cov_a,
+                                               b=cov_b)
 
         self.train_llk = None
         self.mcmc_draws_users = None

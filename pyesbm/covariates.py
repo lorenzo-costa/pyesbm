@@ -8,8 +8,12 @@ from pyesbm.utilities import compute_log_probs
 from scipy.sparse import csr_matrix
 
 class CovariateClass:
-    def __init__(self, alpha_c, covariates, num_nodes, cov_names=None):
-        self._arg_validation(alpha_c, covariates, num_nodes)
+    def __init__(self, 
+                 covariates,
+                 alpha_c=1.0,
+                 a=1.0,
+                 b=1.0,):
+        self._arg_validation(a, b, alpha_c, covariates)
 
         self.covariates = covariates
         self._process_cov(covariates)
@@ -24,8 +28,9 @@ class CovariateClass:
             self.alpha_c = alpha_c
 
         self.alpha_0 = np.sum(self.alpha_c)
-
-        self.num_nodes = num_nodes
+        
+        self.a = a
+        self.b = b
 
         self.nch = None
 
@@ -65,7 +70,14 @@ class CovariateClass:
         return nch
 
     def compute_logits(
-        self, num_components, node_idx, frequencies_minus, nch_minus=None, **kwargs
+        self, 
+        num_components, 
+        node_idx, 
+        frequencies,
+        frequencies_minus,
+        nch, 
+        nch_minus, 
+        **kwargs
     ):
         """Compute log probabilities for the covariate part of the likelihood.
 
@@ -84,30 +96,37 @@ class CovariateClass:
             Log probabilities for each cluster.
         """
 
-        if nch_minus is None:
-            nch_minus = self.get_nch()
+        # if nch_minus is None:
+        #     nch_minus = self.get_nch()
 
         logits = compute_log_probs(
             num_components=num_components,
             idx=node_idx,
             cov_types=self.cov_types,
-            cov_nch=nch_minus,
+            cov_nch=nch,
+            cov_nch_minus=nch_minus,
             cov_values=self.cov_values,
-            nh=frequencies_minus,
+            nh=frequencies,
+            nh_minus=frequencies_minus,
             alpha_c=self.alpha_c,
             alpha_0=self.alpha_0,
+            a=self.a,
+            b=self.b,
         )
 
         return logits
 
-    def _arg_validation(self, alpha_c, covariates, num_nodes):
-        if not isinstance(alpha_c, (int, float, np.ndarray)):
+    def _arg_validation(self, a, b, alpha_c, covariates):
+        
+        if not isinstance(alpha_c, (int, float, np.ndarray, list)):
             raise TypeError(
                 f"alpha_c must be int, float or np.ndarray. You provided {type(alpha_c)}"
             )
-
-        if not isinstance(num_nodes, int):
-            raise TypeError(f"num_nodes must be int. You provided {type(num_nodes)}")
+        
+        if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
+            raise TypeError(
+                f"a and b must be int or float. You provided {type(a)} and {type(b)}"
+            )
 
         if not isinstance(covariates, list):
             raise TypeError(
@@ -158,13 +177,12 @@ class CovariateClass:
             vals = self.cov_values[i]
             n_samples = len(clustering)
             vals = vals[:n_samples] # when building clustering use only some vals
-            clusters = clustering
             
-            n_clusters = np.max(clusters) + 1
-
+            n_clusters = np.max(clustering) + 1
+        
             # row indices = sample indices
             row = np.arange(n_samples)
-            col = clusters
+            col = clustering
             data = np.ones(n_samples)
 
             cluster_indicator = csr_matrix((data, (row, col)),

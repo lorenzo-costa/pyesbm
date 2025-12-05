@@ -67,9 +67,19 @@ class ClusterProcessor:
             if covariates is not None
             else None
         )
+        
+        computed_quantities = {
+            "num_clusters": num_clusters,
+            "frequencies": frequencies,
+            "frequencies_minus": frequencies,  # for consistency with gibbs step update
+            "num_nodes": current_num_nodes,
+            "nch": nch,
+            "nch_minus": nch,
+        }
 
         # sequential assignment of clusters
         for i in range(1, num_nodes):
+            computed_quantities["node_idx"] = i
             # prior contribution
             prior_probs = self.prior.compute_probs(
                 model=self,
@@ -81,8 +91,8 @@ class ClusterProcessor:
             if nch is not None:
                 logits_cov = covariates.compute_logits(
                     num_components=len(prior_probs),
-                    node_idx=i,
-                    frequencies_minus=np.array(frequencies),
+                    mode=self,
+                    **computed_quantities
                 )
 
             # convert back using exp and normalise

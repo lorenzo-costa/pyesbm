@@ -227,7 +227,9 @@ class BaseESBM(ESBMconfig):
             cov_logits = 0
             if covariates is not None:
                 cov_logits = covariates.compute_logits(
-                    model=self, num_components=len(prior_probs), **computed_quantities
+                    model=self, 
+                    num_components=len(prior_probs), 
+                    **computed_quantities
                 )
 
             logits = np.log(prior_probs + self.epsilon) + llk_logits + cov_logits
