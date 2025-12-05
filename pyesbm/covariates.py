@@ -145,11 +145,7 @@ class CovariateClass:
             if cov_type == 'categorical':
                 temp = np.eye(num_classes)[cov[1]]
             elif cov_type == 'count':
-                temp = np.zeros((num_nodes, num_classes))
-                for i in range(num_nodes):
-                    t = np.zeros(num_classes)
-                    t[:cov[1][i]+1] = 1
-                    temp[i] = t
+                temp = (np.arange(num_classes) <= cov[1][:, None]).astype(int)
             cov_values.append(temp)
 
         self.cov_names = cov_names
