@@ -1,31 +1,17 @@
-## pyesbm 
+# pyesbm
 
-## Problem to solve:
-There is not easy to use implementation of Bayesian Non-parametric ESBM. The idea would be to have a package that allows the use to implement their version of ESBM along with some pre-built tools.
+Python code for modeling and inference using [Extended Stochastic Block Models](https://doi.org/10.1214/21-AOAS1595). See the [examples](pyesbm/examples/) for user-friendly illustration.
+ 
+### Key features 
 
-At a high level a sbm has:
-- likelihood
-    Possible choices include
-    - Bernoulli 
-    - Poisson 
-    - Gaussian
-- prior 
-    Possible choices include:
-    - multinomial-dirichlet
-    - non-parametric priors
-- sampling mechanism:
-    -> implement only gibbs sampler but allow the possibility of having different sampling schemes
+* Estimation and inference for uni-partite and bi-partite graph using Bayesian Non-parametric Stochastic Block-Models
 
-At a high level I would like to have a class ESBM that allows the user to specify
-- likelihood
-- prior
-- degree-correction or not
-- bipartite or not
+* Complete fitting procedure for collapsed Gibbs sampler using Poisson-Gamma or Beta-Bernoulli models (for the edges) and several instance of Gibbs-type priors (for the clustering structure).
 
-The class should implement:
-- point prediction
-- credible balls
-- likelihood computation
-- fit method
-- sampling
+* The code allows the use of categorical and count-valued covariates to "supervise" the Gibbs sampler and borrow information from sources external from the graph.
+
+* Flexible framework that allows users to specify their own model for edges, prior on the clustering partition or covariate types.
+
+
+
 
