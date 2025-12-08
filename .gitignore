@@ -9,3 +9,4 @@ example.ipynb
 .pytest_cache/
 .ruff_cache/
 .vscode/
+pyesbm.egg-info/
