@@ -47,22 +47,22 @@ def plot_heatmap(
     sort_clusters_by_size=None,
 ):
     if model.covariates_1 is not None:
-        covariates_1_name = model.covariates_1.cov_names[0]
-        covariates_1_type = model.covariates_1.cov_types[0]
+        covariates_1_name = model.covariates_1.covariates[0].name
+        covariates_1_type = model.covariates_1.covariates[0].cov_type
         if covariates_1_type == 'categorical':
-            covariates_1 = model.covariates_1.cov_values[0]
+            covariates_1 = model.covariates_1.covariates[0].cov_values
             covariates_1 = np.where(covariates_1>0)[1]
         elif covariates_1_type == 'count':
-            covariates_1 = model.covariates_1.cov_values[0].sum(axis=1)
-            
+            covariates_1 = model.covariates_1.covariates[0].cov_values.sum(axis=1)
+
     if model.covariates_2 is not None:
-        covariates_2_name = model.covariates_2.cov_names[0]
-        covariates_2_type = model.covariates_2.cov_types[0]
+        covariates_2_name = model.covariates_2.covariates[0].name
+        covariates_2_type = model.covariates_2.covariates[0].cov_type
         if covariates_2_type == 'categorical':
-            covariates_2 = model.covariates_2.cov_values[0]
+            covariates_2 = model.covariates_2.covariates[0].cov_values
             covariates_2 = np.where(covariates_2>0)[1]
         elif covariates_2_type == 'count':
-            covariates_2 = model.covariates_2.cov_values[0].sum(axis=1)
+            covariates_2 = model.covariates_2.covariates[0].cov_values.sum(axis=1)
 
     if sort_clusters_by_size is None:
         if bipartite is True:

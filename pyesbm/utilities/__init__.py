@@ -1,6 +1,7 @@
 from .numba_functions import (
     sampling_scheme,
-    compute_log_probs,
+    compute_logits_categorical,
+    compute_logits_count
 )
 from .misc_functs import compute_co_clustering_matrix
 from .vi_functs import minVI
@@ -11,7 +12,8 @@ from .cluster_processor import ClusterProcessor
 
 __all__ = [
     "sampling_scheme",
-    "compute_log_probs",
+    "compute_logits_categorical",
+    "compute_logits_count",
     "compute_log_likelihood",
     "compute_co_clustering_matrix",
     "minVI",

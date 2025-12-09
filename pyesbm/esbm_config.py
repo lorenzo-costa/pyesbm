@@ -1,7 +1,7 @@
 from pyesbm.likelihoods import BaseLikelihood
 import numpy as np
 from pyesbm.priors import BasePrior
-from pyesbm.covariates import CovariateClass
+from pyesbm.covariates import CovariateModel, BaseCovariate
 
 
 class ESBMconfig:
@@ -98,16 +98,30 @@ class ESBMconfig:
                     f"rng must be a numpy random Generator or int. You provided {type(rng)}"
                 )
         if covariates_1 is not None:
-            if not isinstance(covariates_1, CovariateClass):
-                raise TypeError(
-                    f"covariates_1 must be a CovariateClass instance. You provided {type(covariates_1)}"
-                )
+            if isinstance(covariates_1, list):
+                for cov in covariates_1:
+                    if not isinstance(cov, BaseCovariate):
+                        raise TypeError(
+                            f"all elements in covariates_1 must be BaseCovariate instances. You provided {type(cov)}"
+                        )
+            else:
+                if not isinstance(covariates_1, BaseCovariate):
+                    raise TypeError(
+                        f"covariates_1 must be a BaseCovariate instance. You provided {type(covariates_1)}"
+                    )
         if covariates_2 is not None:
-            if not isinstance(covariates_2, CovariateClass):
-                raise TypeError(
-                    f"covariates_2 must be a CovariateClass instance. You provided {type(covariates_2)}"
-                )
-        
+            if isinstance(covariates_2, list):
+                for cov in covariates_2:
+                    if not isinstance(cov, BaseCovariate):
+                        raise TypeError(
+                            f"all elements in covariates_2 must be BaseCovariate instances. You provided {type(cov)}"
+                        )
+            else:
+                if not isinstance(covariates_2, BaseCovariate):
+                    raise TypeError(
+                        f"covariates_2 must be a BaseCovariate instance. You provided {type(covariates_2)}"
+                    )
+
         if not isinstance(epsilon, (int, float)):
             raise TypeError(
                 f"epsilon must be int or float. You provided {type(epsilon)}"
@@ -231,8 +245,8 @@ class ESBMconfig:
         self.verbose = verbose
         self.epsilon = epsilon
 
-        self.covariates_1 = covariates_1
-        self.covariates_2 = covariates_2
+        self.covariates_1 = CovariateModel(covariates_1) if covariates_1 is not None else None
+        self.covariates_2 = CovariateModel(covariates_2) if covariates_2 is not None else None
 
         self.train_llk = None
         self.mcmc_draws_users = None

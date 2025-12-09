@@ -4,34 +4,143 @@ Implement different covariate models
 
 # covariates.py
 import numpy as np
-from pyesbm.utilities import compute_log_probs
+from pyesbm.utilities import compute_logits_categorical, compute_logits_count
 from scipy.sparse import csr_matrix
 
-class CovariateClass:
-    def __init__(self, 
-                 covariates,
-                 alpha_c=1.0,
-                 a=1.0,
-                 b=1.0,):
-        self._arg_validation(a, b, alpha_c, covariates)
 
-        self.covariates = covariates
-        self._process_cov(covariates)
+class BaseCovariate:
+    def __init__(self):
+        pass
+    
+    def compute_logits(self):
+        raise NotImplementedError(
+            "This is an abstract method. Please implement in subclass."
+        )
+
+class CategoricalCovariate(BaseCovariate):
+    def __init__(self, 
+                 cov_array,
+                 name=None,
+                 alpha_c=1,
+                 **kwargs):
+
+        if not isinstance(alpha_c, (int, float, np.ndarray, list)):
+            raise TypeError(
+                f"alpha_c must be int, float, np.ndarray or list. You provided {type(alpha_c)}"
+            )
+        
+        if not isinstance(cov_array, (list, np.ndarray)):
+            raise TypeError(
+                f"cov_array must be a list or np.ndarray. You provided {type(cov_array)}"
+            )
+        
+        if isinstance(cov_array, list):
+            cov_array = np.array(cov_array)
+        
+        self.name = name if name is not None else "categorical_covariate"
 
         if isinstance(alpha_c, (int, float)):
-            temp = []
-            for vals in self.cov_values:
-                n_unique = len(np.unique(vals))
-                temp.extend([alpha_c] * n_unique)
-            self.alpha_c = np.array(temp)
+            n_unique = len(np.unique(cov_array))
+            self.alpha_c = np.array([alpha_c] * n_unique)
         else:
-            self.alpha_c = alpha_c
-
+            self.alpha_c = np.array(alpha_c)
         self.alpha_0 = np.sum(self.alpha_c)
+
+        num_classes = np.max(cov_array) + 1
+        self.cov_values = np.eye(num_classes)[cov_array]
+        
+        self.cov_type = 'categorical'
+    
+    def compute_logits(
+        self, 
+        num_components, 
+        node_idx, 
+        frequencies_minus,
+        nch_minus, 
+        **kwargs
+    ):
+        logits = compute_logits_categorical(
+            num_components=num_components,
+            idx=node_idx,
+            nch_minus=nch_minus,
+            cov_values=self.cov_values,
+            nh_minus=frequencies_minus,
+            alpha_c=self.alpha_c,
+            alpha_0=self.alpha_0,
+        )
+
+        return logits
+
+
+class CountCovariate(BaseCovariate):
+    def __init__(self, 
+                 cov_array,
+                 name=None,
+                 a=1.0,
+                 b=1.0,
+                 **kwargs):
+        
+        if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
+            raise TypeError(
+                f"a and b must be int or float. You provided {type(a)} and {type(b)}"
+            )
+        
+        if name is None:
+            name = "count_covariate"
+            
+        if not isinstance(name, str):
+            raise TypeError(
+                f"name must be a string. You provided {type(name)}"
+            )
+        
+        if not isinstance(cov_array, (list, np.ndarray)):
+            raise TypeError(
+                f"cov_array must be a list or np.ndarray. You provided {type(cov_array)}"
+            )
+        if isinstance(cov_array, list):
+            cov_array = np.array(cov_array)
+        
+        self.name = name if name is not None else "count_covariate"
+        
+        num_classes = np.max(cov_array) + 1
+        self.cov_values = (np.arange(num_classes) <= cov_array[:, None]).astype(int)
         
         self.a = a
         self.b = b
+        
+        self.cov_type = 'count'
 
+    def compute_logits(
+        self, 
+        num_components, 
+        node_idx, 
+        frequencies,
+        frequencies_minus,
+        nch, 
+        nch_minus, 
+        **kwargs
+    ):
+        
+        logits = compute_logits_count(
+            num_components=num_components,
+            idx=node_idx,
+            nch=nch,
+            nch_minus=nch_minus,
+            cov_values=self.cov_values,
+            nh=frequencies,
+            nh_minus=frequencies_minus,
+            a=self.a,
+            b=self.b,
+        )
+        
+        return logits
+        
+
+class CovariateModel:
+    def __init__(self, 
+                 covariates):
+        
+        self.covariates = covariates
         self.nch = None
 
     def get_nch(self, clustering=None, num_clusters=None):
@@ -49,10 +158,11 @@ class CovariateClass:
 
     def add_cluster(self, idx):
         nch = self.get_nch()
-        for cov in range(len(self.cov_values)):
-            n_unique = self.cov_values[cov].shape[1]
+        for cov in range(len(self.covariates)):
+            cov_values = self.covariates[cov].cov_values
+            n_unique = cov_values.shape[1]
             temp = np.zeros(n_unique)
-            c = np.where(self.cov_values[cov][idx]==1)[0][0]
+            c = np.where(cov_values[idx]==1)[0][0]
             temp[int(c)] += 1
             nch[cov] = np.column_stack((nch[cov], temp.reshape(-1, 1)))
 
@@ -62,13 +172,14 @@ class CovariateClass:
 
     def update_nch(self, idx, new_cluster):
         nch = self.get_nch()
-        for cov in range(len(self.cov_values)):
-            c = np.where(self.cov_values[cov][idx]==1)[0][0]
+        for cov in range(len(self.covariates)):
+            cov_values = self.covariates[cov].cov_values
+            c = np.where(cov_values[idx]==1)[0][0]
             nch[cov][c, new_cluster] += 1
 
         self.nch = nch
         return nch
-
+    
     def compute_logits(
         self, 
         num_components, 
@@ -95,86 +206,26 @@ class CovariateClass:
         log_probs : array-like
             Log probabilities for each cluster.
         """
-
-        # if nch_minus is None:
-        #     nch_minus = self.get_nch()
-
-        logits = compute_log_probs(
-            num_components=num_components,
-            idx=node_idx,
-            cov_types=self.cov_types,
-            cov_nch=nch,
-            cov_nch_minus=nch_minus,
-            cov_values=self.cov_values,
-            nh=frequencies,
-            nh_minus=frequencies_minus,
-            alpha_c=self.alpha_c,
-            alpha_0=self.alpha_0,
-            a=self.a,
-            b=self.b,
-        )
+        
+        logits = np.zeros(num_components)
+        
+        for cov in range(len(self.covariates)):
+            out = self.covariates[cov].compute_logits(
+                num_components=num_components,
+                node_idx=node_idx,
+                frequencies=frequencies,
+                frequencies_minus=frequencies_minus,
+                nch=nch[cov],
+                nch_minus=nch_minus[cov],
+            )
+            logits += out
 
         return logits
-
-    def _arg_validation(self, a, b, alpha_c, covariates):
-        
-        if not isinstance(alpha_c, (int, float, np.ndarray, list)):
-            raise TypeError(
-                f"alpha_c must be int, float or np.ndarray. You provided {type(alpha_c)}"
-            )
-        
-        if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
-            raise TypeError(
-                f"a and b must be int or float. You provided {type(a)} and {type(b)}"
-            )
-
-        if not isinstance(covariates, list):
-            raise TypeError(
-                f"covariates must be a list. You provided {type(covariates)}"
-            )
-
-        for cov in covariates:
-            if not isinstance(cov, tuple) or len(cov) != 2:
-                raise ValueError(
-                    f"Each covariate must be a tuple of (name, values). You provided {cov}"
-                )
-            name, values = cov
-            if not isinstance(name, str):
-                raise TypeError(
-                    f"Covariate name must be a string. You provided {type(name)}"
-                )
-            if not isinstance(values, (list, np.ndarray)):
-                raise TypeError(
-                    f"Covariate values must be a list or np.ndarray. You provided {type(values)}"
-                )
-            if len(values) == 0:
-                raise ValueError("Covariate values cannot be empty.")
-
-    def _process_cov(self, cov_list):
-        cov_names, cov_types, cov_values = [], [], []
-        for cov in cov_list:
-            name_type = cov[0].split("_", 1)
-            cov_name, cov_type = name_type[0], name_type[1]
-            cov_names.append(cov_name)
-            cov_types.append(cov_type)
-            
-            num_nodes = len(cov[1])
-            num_classes = np.max(cov[1]) + 1
-
-            if cov_type == 'categorical':
-                temp = np.eye(num_classes)[cov[1]]
-            elif cov_type == 'count':
-                temp = (np.arange(num_classes) <= cov[1][:, None]).astype(int)
-            cov_values.append(temp)
-
-        self.cov_names = cov_names
-        self.cov_types = cov_types
-        self.cov_values = cov_values
-
+    
     def _compute_nch(self, clustering, n_clusters):
         cov_nch = []
-        for i in range(len(self.cov_values)):
-            vals = self.cov_values[i]
+        for i in range(len(self.covariates)):
+            vals = self.covariates[i].cov_values
             n_samples = len(clustering)
             vals = vals[:n_samples] # when building clustering use only some vals
             
@@ -191,3 +242,4 @@ class CovariateClass:
             cov_nch.append(vals.T @ cluster_indicator)
             
         return cov_nch
+        
