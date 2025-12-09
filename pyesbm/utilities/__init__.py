@@ -1,7 +1,7 @@
 from .numba_functions import (
     sampling_scheme,
     compute_logits_categorical,
-    compute_logits_count
+    compute_logits_count,
 )
 from .misc_functs import compute_co_clustering_matrix
 from .vi_functs import minVI

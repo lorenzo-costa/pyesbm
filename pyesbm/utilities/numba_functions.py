@@ -12,6 +12,7 @@ import numpy as np
 # log-likelihood computation functions
 ##############################################
 
+
 @nb.jit(nopython=True, fastmath=True)
 def compute_llk_poisson(
     a,
@@ -156,6 +157,7 @@ def compute_llk_bernoulli(
 # gibbs-type prior sampling scheme
 ####################################
 
+
 @nb.jit(nopython=True)
 def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, gamma):
     """Probability of sampling each cluster (and a new one) under Gibbs-type priors.
@@ -221,6 +223,7 @@ def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, 
 #################################
 # log probability computation for gibbs sampling steps
 #################################
+
 
 @nb.njit(fastmath=True, parallel=False)
 def update_prob_poissongamma(
@@ -403,17 +406,10 @@ def update_prob_betabernoulli(
 # covariate log-probability computation functions
 ##########################################
 
+
 @nb.jit(nopython=True)
 def compute_logits_count(
-    num_components, 
-    idx, 
-    nch,
-    nch_minus, 
-    cov_values, 
-    nh,
-    nh_minus,
-    a,
-    b
+    num_components, idx, nch, nch_minus, cov_values, nh, nh_minus, a, b
 ):
     """Numba-optimized function to compute contribution of covariates to log probabilities.
 
@@ -443,23 +439,23 @@ def compute_logits_count(
     """
 
     log_probs = np.zeros(num_components)
-    
+
     num_cov_values = nch.shape[0]
-    
+
     my_val = nch * np.arange(num_cov_values).reshape(-1, 1)
     my_val = my_val.sum(axis=0)
-    
+
     my_val_minus = nch_minus * np.arange(num_cov_values).reshape(-1, 1)
-    my_val_minus = my_val_minus.sum(axis=0) 
+    my_val_minus = my_val_minus.sum(axis=0)
 
     for h in range(len(nh_minus)):
         first = lgamma(a + my_val[h])
         second = lgamma(a + my_val_minus[h])
         third = (a + my_val_minus[h]) * np.log(nh_minus[h] + b)
         fourth = (a + my_val[h]) * np.log(nh[h] + b)
-        
+
         log_probs[h] += first - second + third - fourth
-    
+
     xi = cov_values[idx].sum()
     first = lgamma(a + xi)
     second = lgamma(a)
@@ -469,12 +465,13 @@ def compute_logits_count(
 
     return log_probs
 
+
 @nb.jit(nopython=True)
 def compute_logits_categorical(
-    num_components, 
-    idx, 
-    nch_minus, 
-    cov_values, 
+    num_components,
+    idx,
+    nch_minus,
+    cov_values,
     nh_minus,
     alpha_c,
     alpha_0,
@@ -507,11 +504,12 @@ def compute_logits_categorical(
     """
 
     log_probs = np.zeros(num_components)
-    c = np.where(cov_values[idx]==1)[0][0]
+    c = np.where(cov_values[idx] == 1)[0][0]
     for h in range(len(nh_minus)):
         c = int(c)
-        log_probs[h] += (np.log(nch_minus[c, h] + alpha_c[c]) 
-                            - np.log(nh_minus[h] + alpha_0))
+        log_probs[h] += np.log(nch_minus[c, h] + alpha_c[c]) - np.log(
+            nh_minus[h] + alpha_0
+        )
     log_probs[-1] += np.log(alpha_c[c]) - np.log(alpha_0)
 
     return log_probs

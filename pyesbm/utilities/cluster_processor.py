@@ -67,7 +67,7 @@ class ClusterProcessor:
             if covariates is not None
             else None
         )
-        
+
         computed_quantities = {
             "num_clusters": num_clusters,
             "frequencies": frequencies,
@@ -90,9 +90,7 @@ class ClusterProcessor:
             logits_cov = 0
             if nch is not None:
                 logits_cov = covariates.compute_logits(
-                    num_components=len(prior_probs),
-                    mode=self,
-                    **computed_quantities
+                    num_components=len(prior_probs), mode=self, **computed_quantities
                 )
 
             # convert back using exp and normalise

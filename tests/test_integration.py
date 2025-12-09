@@ -11,51 +11,78 @@ from pyesbm.utilities.misc_functs import generate_poisson_data, generate_bernoul
 from pyesbm.priors import GibbsTypePrior
 from pyesbm.likelihoods import PoissonGamma, BetaBernoulli
 
+
 class TestBaseESBM:
-    
     @classmethod
     def setup_class(cls):
         cls.n_1 = 50
         cls.n_2 = 50
 
         # manually define clustering structure
-        cls.sizes_1 = [cls.n_1//5, cls.n_1//10, cls.n_1//3, cls.n_1//4, cls.n_1 - (cls.n_1//3)-(cls.n_1//4)-(cls.n_1//5)-(cls.n_1//10)]
+        cls.sizes_1 = [
+            cls.n_1 // 5,
+            cls.n_1 // 10,
+            cls.n_1 // 3,
+            cls.n_1 // 4,
+            cls.n_1
+            - (cls.n_1 // 3)
+            - (cls.n_1 // 4)
+            - (cls.n_1 // 5)
+            - (cls.n_1 // 10),
+        ]
         cls.clustering_1 = np.array(
-            [0 for _ in range(cls.sizes_1[0])] + 
-            [1 for _ in range(cls.sizes_1[1])] + 
-            [2 for _ in range(cls.sizes_1[2])] + 
-            [3 for _ in range(cls.sizes_1[3])] +
-            [4 for _ in range(cls.sizes_1[4])])
+            [0 for _ in range(cls.sizes_1[0])]
+            + [1 for _ in range(cls.sizes_1[1])]
+            + [2 for _ in range(cls.sizes_1[2])]
+            + [3 for _ in range(cls.sizes_1[3])]
+            + [4 for _ in range(cls.sizes_1[4])]
+        )
 
-        cls.sizes_2 = [cls.n_2//4, cls.n_2//4, cls.n_2//5, cls.n_2 - (cls.n_2//4)-(cls.n_2//4)-(cls.n_2//5)]
+        cls.sizes_2 = [
+            cls.n_2 // 4,
+            cls.n_2 // 4,
+            cls.n_2 // 5,
+            cls.n_2 - (cls.n_2 // 4) - (cls.n_2 // 4) - (cls.n_2 // 5),
+        ]
         cls.clustering_2 = np.array(
-            [0 for _ in range(cls.sizes_2[0])] + 
-            [1 for _ in range(cls.sizes_2[1])] + 
-            [2 for _ in range(cls.sizes_2[2])] + 
-            [3 for _ in range(cls.sizes_2[3])])
-        
-        cls.t1 = np.array([1 if cls.clustering_1[i]%2==0 else 0 for i in range(cls.n_1)])
-        cls.t2 = np.array([1 if cls.clustering_1[i]%2==0 else 0 for i in range(cls.n_1)])
-        
-        cls.t3 = np.array([1 if cls.clustering_2[i]%2==0 else 0 for i in range(cls.n_2)])
-        cls.t4 = np.array([1 if cls.clustering_2[i]%2==0 else 0 for i in range(cls.n_2)])
+            [0 for _ in range(cls.sizes_2[0])]
+            + [1 for _ in range(cls.sizes_2[1])]
+            + [2 for _ in range(cls.sizes_2[2])]
+            + [3 for _ in range(cls.sizes_2[3])]
+        )
+
+        cls.t1 = np.array(
+            [1 if cls.clustering_1[i] % 2 == 0 else 0 for i in range(cls.n_1)]
+        )
+        cls.t2 = np.array(
+            [1 if cls.clustering_1[i] % 2 == 0 else 0 for i in range(cls.n_1)]
+        )
+
+        cls.t3 = np.array(
+            [1 if cls.clustering_2[i] % 2 == 0 else 0 for i in range(cls.n_2)]
+        )
+        cls.t4 = np.array(
+            [1 if cls.clustering_2[i] % 2 == 0 else 0 for i in range(cls.n_2)]
+        )
 
         cls.t1[np.random.randint(0, len(cls.t1), size=25)] = 2
         cls.t2[np.random.randint(0, len(cls.t2), size=25)] = 0
         cls.t3[np.random.randint(0, len(cls.t3), size=20)] = 2
         cls.t4[np.random.randint(0, len(cls.t4), size=20)] = 0
 
-        cls.covs_1 = [('genre_categorical', cls.t1.copy()), 
-                ('genre2_categorical', cls.t2.copy())]
+        cls.covs_1 = [
+            ("genre_categorical", cls.t1.copy()),
+            ("genre2_categorical", cls.t2.copy()),
+        ]
 
-        cls.covs_2 = [('type_categorical', cls.t3.copy()), 
-                ('type2_categorical', cls.t4.copy())]
+        cls.covs_2 = [
+            ("type_categorical", cls.t3.copy()),
+            ("type2_categorical", cls.t4.copy()),
+        ]
 
-        cls.covs_3 = [('genre_count', cls.t1.copy()), 
-                ('genre2_count', cls.t2.copy())]
+        cls.covs_3 = [("genre_count", cls.t1.copy()), ("genre2_count", cls.t2.copy())]
 
-        cls.covs_4 = [('type_count', cls.t3.copy()), 
-                ('type2_count', cls.t4.copy())]
+        cls.covs_4 = [("type_count", cls.t3.copy()), ("type2_count", cls.t4.copy())]
 
         cls.rng_gen = np.random.default_rng(42)
 
@@ -63,276 +90,305 @@ class TestBaseESBM:
 
     @pytest.mark.parametrize("prior_type", ["DP", "PY", "GN"])
     def test_bipartite_poisson_no_cov(self, prior_type):
-        
-        Y = generate_poisson_data(0.5,
-                                0.5,
-                                self.clustering_1, 
-                                clustering_2=self.clustering_2,
-                                bipartite=True, 
-                                rng=self.rng_gen)
-        
+        Y = generate_poisson_data(
+            0.5,
+            0.5,
+            self.clustering_1,
+            clustering_2=self.clustering_2,
+            bipartite=True,
+            rng=self.rng_gen,
+        )
+
         a = np.random.permutation(self.n_1)
         b = np.random.permutation(self.n_2)
         Y = Y[a][:, b]
 
-        prior = GibbsTypePrior(scheme_type=prior_type,
-                               scheme_param=1.5,
-                               sigma=-0.5 if prior_type=="DM" else 0.5,
-                               gamma=0.5,
-                               num_nodes_1=self.n_1,
-                               num_nodes_2=self.n_2)
-        
+        prior = GibbsTypePrior(
+            scheme_type=prior_type,
+            scheme_param=1.5,
+            sigma=-0.5 if prior_type == "DM" else 0.5,
+            gamma=0.5,
+            num_nodes_1=self.n_1,
+            num_nodes_2=self.n_2,
+        )
+
         likelihood = PoissonGamma(shape=1, rate=1)
-        
-        model = BaseESBM(Y, 
-            prior=prior, 
-            likelihood=likelihood, 
-            epsilon=1e-10, 
-            bipartite=True, 
-            verbose=False, 
-            clustering='Random',
-            rng=self.rng_model)
 
-        model.fit(n_iters=10, verbose=False)
-        
-        assert True
-    
-    @pytest.mark.parametrize("prior_type", ["DP", "PY", "GN"])
-    def test_bipartite_bernoulli_no_cov(self, prior_type):
-        
-        Y = generate_bernoulli_data(0.5,
-                                0.5,
-                                self.clustering_1, 
-                                clustering_2=self.clustering_2,
-                                bipartite=True, 
-                                rng=self.rng_gen)
-        
-        a = np.random.permutation(self.n_1)
-        b = np.random.permutation(self.n_2)
-        Y = Y[a][:, b]
-
-        prior = GibbsTypePrior(scheme_type=prior_type,
-                               scheme_param=1.5,
-                               sigma=-0.5 if prior_type=="DM" else 0.5,
-                               gamma=0.5,
-                               num_nodes_1=self.n_1,
-                               num_nodes_2=self.n_2)
-        
-        likelihood = BetaBernoulli(alpha=1, beta=1)
-        
-        model = BaseESBM(Y, 
-            prior=prior, 
-            likelihood=likelihood, 
-            epsilon=1e-10, 
-            bipartite=True, 
-            verbose=False, 
-            clustering='Random',
-            rng=self.rng_model)
-
-        model.fit(n_iters=10, verbose=False)
-        
-        assert True
-    
-    @pytest.mark.parametrize("prior_type", ["DP", "PY", "GN"])
-    def test_unipartite_poisson_no_cov(self, prior_type):
-        
-        Y = generate_poisson_data(0.5,
-                                0.5,
-                                self.clustering_1, 
-                                bipartite=False, 
-                                rng=self.rng_gen)
-        
-        a = np.random.permutation(self.n_1)
-        Y = Y[a][:, a]
-
-        prior = GibbsTypePrior(scheme_type=prior_type,
-                               scheme_param=1.5,
-                               sigma=-0.5 if prior_type=="DM" else 0.5,
-                               gamma=0.5,
-                               num_nodes_1=self.n_1)
-        
-        likelihood = PoissonGamma(shape=1, rate=1)
-        
-        model = BaseESBM(Y, 
-            prior=prior, 
-            likelihood=likelihood, 
-            epsilon=1e-10, 
-            bipartite=False, 
-            verbose=False, 
-            clustering='Random',
-            rng=self.rng_model)
-
-        model.fit(n_iters=10, verbose=False)
-        
-        assert True
-    
-    @pytest.mark.parametrize("prior_type", ["DP", "PY", "GN"])
-    def test_unipartite_bernoulli_no_cov(self, prior_type):
-        
-        Y = generate_bernoulli_data(0.5,
-                                0.5,
-                                self.clustering_1, 
-                                bipartite=False, 
-                                rng=self.rng_gen)
-        
-        a = np.random.permutation(self.n_1)
-        Y = Y[a][:, a]
-
-        prior = GibbsTypePrior(scheme_type=prior_type,
-                               scheme_param=1.5,
-                               sigma=-0.5 if prior_type=="DM" else 0.5,
-                               gamma=0.5,
-                               num_nodes_1=self.n_1)
-        
-        likelihood = BetaBernoulli(alpha=1, beta=1)
-        
-        model = BaseESBM(Y, 
-            prior=prior, 
-            likelihood=likelihood, 
-            epsilon=1e-10, 
-            bipartite=False, 
-            verbose=False, 
-            clustering='Random',
-            rng=self.rng_model)
-
-        model.fit(n_iters=10, verbose=False)
-        
-        assert True
-    
-    @pytest.mark.parametrize(
-        "prior_type, cov_type", [
-            ("DP", "PY"),
-            ("PY", "PY"),
-            ("GN", "PY"),
-            ("DP", "count"),
-            ("PY", "count"),
-            ("GN", "count")
-        ])
-    def test_bipartite_poisson_with_cov(self, prior_type, cov_type):
-        
-        Y = generate_poisson_data(0.5,
-                                0.5,
-                                self.clustering_1, 
-                                clustering_2=self.clustering_2,
-                                bipartite=True, 
-                                rng=self.rng_gen)
-        
-        a = np.random.permutation(self.n_1)
-        b = np.random.permutation(self.n_2)
-        Y = Y[a][:, b]
-
-        prior = GibbsTypePrior(scheme_type=prior_type,
-                               scheme_param=1.5,
-                               sigma=-0.5 if prior_type=="DM" else 0.5,
-                               gamma=0.5,
-                               num_nodes_1=self.n_1,
-                               num_nodes_2=self.n_2)
-        
-        likelihood = PoissonGamma(shape=1, rate=1)                       
-        
-        model = BaseESBM(Y, 
-            prior=prior, 
-            likelihood=likelihood, 
-            covariates_1=self.covs_1 if cov_type=='categorical' else self.covs_3,
-            covariates_2=self.covs_2,
-            epsilon=1e-10, 
-            bipartite=True, 
-            verbose=False, 
-            clustering='Random',
-            rng=self.rng_model)
-
-        model.fit(n_iters=10, verbose=False)
-        
-        assert True
-    
-    @pytest.mark.parametrize(
-        "prior_type, cov_type", [
-            ("DP", "PY"),
-            ("PY", "PY"),
-            ("GN", "PY"),
-            ("DP", "count"),
-            ("PY", "count"),
-            ("GN", "count")
-        ])
-    def test_bipartite_bernoulli_with_cov(self, prior_type, cov_type):
-
-        Y = generate_bernoulli_data(0.5,
-                                0.5,
-                                self.clustering_1, 
-                                clustering_2=self.clustering_2,
-                                bipartite=True, 
-                                rng=self.rng_gen)
-        
-        a = np.random.permutation(self.n_1)
-        b = np.random.permutation(self.n_2)
-        Y = Y[a][:, b]
-
-        prior = GibbsTypePrior(scheme_type=prior_type,
-                               scheme_param=1.5,
-                               sigma=-0.5 if prior_type=="DM" else 0.5,
-                               gamma=0.5,
-                               num_nodes_1=self.n_1,
-                               num_nodes_2=self.n_2)
-        
-        likelihood = BetaBernoulli(alpha=1, beta=1)
-
-        model = BaseESBM(Y,
+        model = BaseESBM(
+            Y,
             prior=prior,
             likelihood=likelihood,
-            covariates_1=self.covs_1 if cov_type=='categorical' else self.covs_3,
-            covariates_2=self.covs_2 if cov_type=='categorical' else self.covs_4,
-            epsilon=1e-10, 
-            bipartite=True, 
-            verbose=False, 
-            clustering='Random',
-            rng=self.rng_model)
+            epsilon=1e-10,
+            bipartite=True,
+            verbose=False,
+            clustering="Random",
+            rng=self.rng_model,
+        )
 
         model.fit(n_iters=10, verbose=False)
-        
+
         assert True
-    
+
+    @pytest.mark.parametrize("prior_type", ["DP", "PY", "GN"])
+    def test_bipartite_bernoulli_no_cov(self, prior_type):
+        Y = generate_bernoulli_data(
+            0.5,
+            0.5,
+            self.clustering_1,
+            clustering_2=self.clustering_2,
+            bipartite=True,
+            rng=self.rng_gen,
+        )
+
+        a = np.random.permutation(self.n_1)
+        b = np.random.permutation(self.n_2)
+        Y = Y[a][:, b]
+
+        prior = GibbsTypePrior(
+            scheme_type=prior_type,
+            scheme_param=1.5,
+            sigma=-0.5 if prior_type == "DM" else 0.5,
+            gamma=0.5,
+            num_nodes_1=self.n_1,
+            num_nodes_2=self.n_2,
+        )
+
+        likelihood = BetaBernoulli(alpha=1, beta=1)
+
+        model = BaseESBM(
+            Y,
+            prior=prior,
+            likelihood=likelihood,
+            epsilon=1e-10,
+            bipartite=True,
+            verbose=False,
+            clustering="Random",
+            rng=self.rng_model,
+        )
+
+        model.fit(n_iters=10, verbose=False)
+
+        assert True
+
+    @pytest.mark.parametrize("prior_type", ["DP", "PY", "GN"])
+    def test_unipartite_poisson_no_cov(self, prior_type):
+        Y = generate_poisson_data(
+            0.5, 0.5, self.clustering_1, bipartite=False, rng=self.rng_gen
+        )
+
+        a = np.random.permutation(self.n_1)
+        Y = Y[a][:, a]
+
+        prior = GibbsTypePrior(
+            scheme_type=prior_type,
+            scheme_param=1.5,
+            sigma=-0.5 if prior_type == "DM" else 0.5,
+            gamma=0.5,
+            num_nodes_1=self.n_1,
+        )
+
+        likelihood = PoissonGamma(shape=1, rate=1)
+
+        model = BaseESBM(
+            Y,
+            prior=prior,
+            likelihood=likelihood,
+            epsilon=1e-10,
+            bipartite=False,
+            verbose=False,
+            clustering="Random",
+            rng=self.rng_model,
+        )
+
+        model.fit(n_iters=10, verbose=False)
+
+        assert True
+
+    @pytest.mark.parametrize("prior_type", ["DP", "PY", "GN"])
+    def test_unipartite_bernoulli_no_cov(self, prior_type):
+        Y = generate_bernoulli_data(
+            0.5, 0.5, self.clustering_1, bipartite=False, rng=self.rng_gen
+        )
+
+        a = np.random.permutation(self.n_1)
+        Y = Y[a][:, a]
+
+        prior = GibbsTypePrior(
+            scheme_type=prior_type,
+            scheme_param=1.5,
+            sigma=-0.5 if prior_type == "DM" else 0.5,
+            gamma=0.5,
+            num_nodes_1=self.n_1,
+        )
+
+        likelihood = BetaBernoulli(alpha=1, beta=1)
+
+        model = BaseESBM(
+            Y,
+            prior=prior,
+            likelihood=likelihood,
+            epsilon=1e-10,
+            bipartite=False,
+            verbose=False,
+            clustering="Random",
+            rng=self.rng_model,
+        )
+
+        model.fit(n_iters=10, verbose=False)
+
+        assert True
+
     @pytest.mark.parametrize(
-        "prior_type, cov_type", [
+        "prior_type, cov_type",
+        [
             ("DP", "PY"),
             ("PY", "PY"),
             ("GN", "PY"),
             ("DP", "count"),
             ("PY", "count"),
-            ("GN", "count")
-        ])
-    def test_unipartite_poisson_with_cov(self, prior_type, cov_type):
+            ("GN", "count"),
+        ],
+    )
+    def test_bipartite_poisson_with_cov(self, prior_type, cov_type):
+        Y = generate_poisson_data(
+            0.5,
+            0.5,
+            self.clustering_1,
+            clustering_2=self.clustering_2,
+            bipartite=True,
+            rng=self.rng_gen,
+        )
 
-        Y = generate_poisson_data(0.5,
-                                0.5,
-                                self.clustering_1, 
-                                bipartite=False, 
-                                rng=self.rng_gen)
-        
+        a = np.random.permutation(self.n_1)
+        b = np.random.permutation(self.n_2)
+        Y = Y[a][:, b]
+
+        prior = GibbsTypePrior(
+            scheme_type=prior_type,
+            scheme_param=1.5,
+            sigma=-0.5 if prior_type == "DM" else 0.5,
+            gamma=0.5,
+            num_nodes_1=self.n_1,
+            num_nodes_2=self.n_2,
+        )
+
+        likelihood = PoissonGamma(shape=1, rate=1)
+
+        model = BaseESBM(
+            Y,
+            prior=prior,
+            likelihood=likelihood,
+            covariates_1=self.covs_1 if cov_type == "categorical" else self.covs_3,
+            covariates_2=self.covs_2,
+            epsilon=1e-10,
+            bipartite=True,
+            verbose=False,
+            clustering="Random",
+            rng=self.rng_model,
+        )
+
+        model.fit(n_iters=10, verbose=False)
+
+        assert True
+
+    @pytest.mark.parametrize(
+        "prior_type, cov_type",
+        [
+            ("DP", "PY"),
+            ("PY", "PY"),
+            ("GN", "PY"),
+            ("DP", "count"),
+            ("PY", "count"),
+            ("GN", "count"),
+        ],
+    )
+    def test_bipartite_bernoulli_with_cov(self, prior_type, cov_type):
+        Y = generate_bernoulli_data(
+            0.5,
+            0.5,
+            self.clustering_1,
+            clustering_2=self.clustering_2,
+            bipartite=True,
+            rng=self.rng_gen,
+        )
+
+        a = np.random.permutation(self.n_1)
+        b = np.random.permutation(self.n_2)
+        Y = Y[a][:, b]
+
+        prior = GibbsTypePrior(
+            scheme_type=prior_type,
+            scheme_param=1.5,
+            sigma=-0.5 if prior_type == "DM" else 0.5,
+            gamma=0.5,
+            num_nodes_1=self.n_1,
+            num_nodes_2=self.n_2,
+        )
+
+        likelihood = BetaBernoulli(alpha=1, beta=1)
+
+        model = BaseESBM(
+            Y,
+            prior=prior,
+            likelihood=likelihood,
+            covariates_1=self.covs_1 if cov_type == "categorical" else self.covs_3,
+            covariates_2=self.covs_2 if cov_type == "categorical" else self.covs_4,
+            epsilon=1e-10,
+            bipartite=True,
+            verbose=False,
+            clustering="Random",
+            rng=self.rng_model,
+        )
+
+        model.fit(n_iters=10, verbose=False)
+
+        assert True
+
+    @pytest.mark.parametrize(
+        "prior_type, cov_type",
+        [
+            ("DP", "PY"),
+            ("PY", "PY"),
+            ("GN", "PY"),
+            ("DP", "count"),
+            ("PY", "count"),
+            ("GN", "count"),
+        ],
+    )
+    def test_unipartite_poisson_with_cov(self, prior_type, cov_type):
+        Y = generate_poisson_data(
+            0.5, 0.5, self.clustering_1, bipartite=False, rng=self.rng_gen
+        )
+
         a = np.random.permutation(self.n_1)
         Y = Y[a][:, a]
 
-        prior = GibbsTypePrior(scheme_type=prior_type,
-                               scheme_param=1.5,
-                               sigma=-0.5 if prior_type=="DM" else 0.5,
-                               gamma=0.5,
-                               num_nodes_1=self.n_1)
-        
+        prior = GibbsTypePrior(
+            scheme_type=prior_type,
+            scheme_param=1.5,
+            sigma=-0.5 if prior_type == "DM" else 0.5,
+            gamma=0.5,
+            num_nodes_1=self.n_1,
+        )
+
         likelihood = PoissonGamma(shape=1, rate=1)
-        
-        model = BaseESBM(Y, 
-            prior=prior, 
-            likelihood=likelihood, 
-            covariates_1=self.covs_1 if cov_type=='categorical' else self.covs_3,
-            epsilon=1e-10, 
-            bipartite=False, 
-            verbose=False, 
-            clustering='Random',
-            rng=self.rng_model)
+
+        model = BaseESBM(
+            Y,
+            prior=prior,
+            likelihood=likelihood,
+            covariates_1=self.covs_1 if cov_type == "categorical" else self.covs_3,
+            epsilon=1e-10,
+            bipartite=False,
+            verbose=False,
+            clustering="Random",
+            rng=self.rng_model,
+        )
 
         model.fit(n_iters=10, verbose=False)
-        
+
         assert True
-    
+
     @pytest.mark.parametrize(
         "prior_type, cov_type",
         [
@@ -342,37 +398,38 @@ class TestBaseESBM:
             ("DP", "count"),
             ("PY", "count"),
             ("GN", "count"),
-        ]
+        ],
     )
     def test_unipartite_bernoulli_with_cov(self, prior_type, cov_type):
+        Y = generate_bernoulli_data(
+            0.5, 0.5, self.clustering_1, bipartite=False, rng=self.rng_gen
+        )
 
-        Y = generate_bernoulli_data(0.5,
-                                0.5,
-                                self.clustering_1, 
-                                bipartite=False, 
-                                rng=self.rng_gen)
-        
         a = np.random.permutation(self.n_1)
         Y = Y[a][:, a]
 
-        prior = GibbsTypePrior(scheme_type=prior_type,
-                               scheme_param=1.5,
-                               sigma=-0.5 if prior_type=="DM" else 0.5,
-                               gamma=0.5,
-                               num_nodes_1=self.n_1)
+        prior = GibbsTypePrior(
+            scheme_type=prior_type,
+            scheme_param=1.5,
+            sigma=-0.5 if prior_type == "DM" else 0.5,
+            gamma=0.5,
+            num_nodes_1=self.n_1,
+        )
 
         likelihood = BetaBernoulli(alpha=1, beta=1)
 
-        model = BaseESBM(Y,
-            prior=prior, 
-            likelihood=likelihood, 
-            covariates_1=self.covs_1 if cov_type=='categorical' else self.covs_3,
-            epsilon=1e-10, 
-            bipartite=False, 
-            verbose=False, 
-            clustering='Random',
-            rng=self.rng_model)
+        model = BaseESBM(
+            Y,
+            prior=prior,
+            likelihood=likelihood,
+            covariates_1=self.covs_1 if cov_type == "categorical" else self.covs_3,
+            epsilon=1e-10,
+            bipartite=False,
+            verbose=False,
+            clustering="Random",
+            rng=self.rng_model,
+        )
 
         model.fit(n_iters=10, verbose=False)
-        
+
         assert True

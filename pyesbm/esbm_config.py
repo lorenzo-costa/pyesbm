@@ -245,8 +245,12 @@ class ESBMconfig:
         self.verbose = verbose
         self.epsilon = epsilon
 
-        self.covariates_1 = CovariateModel(covariates_1) if covariates_1 is not None else None
-        self.covariates_2 = CovariateModel(covariates_2) if covariates_2 is not None else None
+        self.covariates_1 = (
+            CovariateModel(covariates_1) if covariates_1 is not None else None
+        )
+        self.covariates_2 = (
+            CovariateModel(covariates_2) if covariates_2 is not None else None
+        )
 
         self.train_llk = None
         self.mcmc_draws_users = None

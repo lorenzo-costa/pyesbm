@@ -34,6 +34,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import seaborn as sns
 
+
 def plot_heatmap(
     model,
     covariates_1=None,
@@ -49,19 +50,19 @@ def plot_heatmap(
     if model.covariates_1 is not None:
         covariates_1_name = model.covariates_1.covariates[0].name
         covariates_1_type = model.covariates_1.covariates[0].cov_type
-        if covariates_1_type == 'categorical':
+        if covariates_1_type == "categorical":
             covariates_1 = model.covariates_1.covariates[0].cov_values
-            covariates_1 = np.where(covariates_1>0)[1]
-        elif covariates_1_type == 'count':
+            covariates_1 = np.where(covariates_1 > 0)[1]
+        elif covariates_1_type == "count":
             covariates_1 = model.covariates_1.covariates[0].cov_values.sum(axis=1)
 
     if model.covariates_2 is not None:
         covariates_2_name = model.covariates_2.covariates[0].name
         covariates_2_type = model.covariates_2.covariates[0].cov_type
-        if covariates_2_type == 'categorical':
+        if covariates_2_type == "categorical":
             covariates_2 = model.covariates_2.covariates[0].cov_values
-            covariates_2 = np.where(covariates_2>0)[1]
-        elif covariates_2_type == 'count':
+            covariates_2 = np.where(covariates_2 > 0)[1]
+        elif covariates_2_type == "count":
             covariates_2 = model.covariates_2.covariates[0].cov_values.sum(axis=1)
 
     if sort_clusters_by_size is None:
@@ -127,7 +128,7 @@ def plot_heatmap(
 
     sorted_cluster_list_1 = [clustering_1[i] for i in idx_sort_1]
     sorted_cluster_list_2 = [clustering_2[i] for i in idx_sort_2]
-    
+
     cluster_boundaries_1 = [0]
     prev_cluster = sorted_cluster_list_1[0]
     for i, cluster in enumerate(sorted_cluster_list_1[1:], 1):
@@ -143,7 +144,6 @@ def plot_heatmap(
             cluster_boundaries_2.append(i)
             prev_cluster = cluster
     cluster_boundaries_2.append(len(sorted_cluster_list_2))
-    
 
     # Create figure with appropriate size and layout for covariates
     fig = plt.figure(figsize=size)
@@ -151,10 +151,10 @@ def plot_heatmap(
     # Set the layout
     if covariates_1 is not None or covariates_2 is not None:
         width_ratios = [0.02, 1] if covariates_1 is not None else [0, 1]
-        
+
         # CHANGED: If Cov 2 exists, Row 0 is thin (Top Bar), Row 1 is fat (Heatmap)
         height_ratios = [0.02, 1] if covariates_2 is not None else [0, 1]
-        
+
         gs = fig.add_gridspec(
             2,
             2,
@@ -207,7 +207,9 @@ def plot_heatmap(
     if add_labels:
         for i in range(len(cluster_boundaries_1) - 1):
             cluster_label = sorted_clusters_1[i]
-            mid_point = Y.shape[0] - (cluster_boundaries_1[i] + cluster_boundaries_1[i + 1]) / 2
+            mid_point = (
+                Y.shape[0] - (cluster_boundaries_1[i] + cluster_boundaries_1[i + 1]) / 2
+            )
             ax_heatmap.text(
                 -0.05,  # slightly above top edge
                 mid_point / Y.shape[0],  # convert mid_point into [0,1]
@@ -246,11 +248,13 @@ def plot_heatmap(
     # Process and plot user covariates if provided
     if covariates_1 is not None:
         sorted_user_covs = [covariates_1[i] for i in idx_sort_1]
-        if covariates_1_type == 'categorical':
+        if covariates_1_type == "categorical":
             # Get unique categories and assign colors
             unique_user_cats = sorted(set(sorted_user_covs))
             user_cmap = plt.get_cmap("inferno", len(unique_user_cats))
-            user_color_dict = {cat: user_cmap(i) for i, cat in enumerate(unique_user_cats)}
+            user_color_dict = {
+                cat: user_cmap(i) for i, cat in enumerate(unique_user_cats)
+            }
 
             # Create color matrix for user covariates
             n_users = len(sorted_user_covs)
@@ -282,7 +286,7 @@ def plot_heatmap(
                 bbox_to_anchor=(-3, 0.15),
                 loc="center right",
             )
-            
+
         elif covariates_1_type == "count":
             cov_arr = np.array(sorted_user_covs).astype(float)
 
@@ -309,18 +313,15 @@ def plot_heatmap(
 
             ax_cov_1.set_xticks([])
             ax_cov_1.set_yticks([])
-            
+
             # Add a discrete colorbar below the covariate bar
             box = ax_cov_1.get_position()
 
-            legend_height = 0.025 
+            legend_height = 0.025
 
-            ax_grad = fig.add_axes([
-                box.x0 - 0.1,               
-                box.y0 - 0.05,
-                box.width+0.05,            
-                legend_height
-            ])
+            ax_grad = fig.add_axes(
+                [box.x0 - 0.1, box.y0 - 0.05, box.width + 0.05, legend_height]
+            )
 
             gradient = np.linspace(min_val, max_val, 256).reshape(1, -1)
 
@@ -334,16 +335,9 @@ def plot_heatmap(
             ax_grad.set_yticks([])
 
             ax_grad.set_xticks([min_val, max_val])
-            ax_grad.set_xticklabels(
-                [f"{min_val}", f"{max_val}"],
-                fontsize=11
-            )
+            ax_grad.set_xticklabels([f"{min_val}", f"{max_val}"], fontsize=11)
 
-            ax_grad.set_title(
-                f"{covariates_1_name}",
-                fontsize=12,
-                pad=4                
-            )
+            ax_grad.set_title(f"{covariates_1_name}", fontsize=12, pad=4)
 
             # # Use colorbar instead of legend (numeric variable)
             # cbar = plt.colorbar(
@@ -352,7 +346,7 @@ def plot_heatmap(
             #     fraction=0.15,
             #     pad=0.2,
             # )
-            
+
             # cbar.set_label(covariates_1_name)
             # cbar.set_ticks(np.arange(min_val, max_val + 1))
 
@@ -362,12 +356,14 @@ def plot_heatmap(
             sorted_item_covs = [covariates_2[i] for i in idx_sort_2]
         else:
             sorted_item_covs = [covariates_2[i] for i in idx_sort_2]
-            
-        if covariates_2_type == 'categorical':
+
+        if covariates_2_type == "categorical":
             # Get unique categories and assign colors
             unique_item_cats = sorted(set(sorted_item_covs))
             item_cmap = plt.get_cmap("inferno", len(unique_item_cats))
-            item_color_dict = {cat: item_cmap(i) for i, cat in enumerate(unique_item_cats)}
+            item_color_dict = {
+                cat: item_cmap(i) for i, cat in enumerate(unique_item_cats)
+            }
 
             # Create color matrix for item covariates
             n_items = len(sorted_item_covs)
@@ -448,15 +444,12 @@ def plot_heatmap(
 
             # Add discrete colorbar/legend below
             box = ax_cov_2.get_position()
-            
+
             legend_height = 0.025
 
-            ax_grad = fig.add_axes([
-                box.x0 + 0.625,
-                box.y0+0.05, 
-                box.width-0.54,
-                legend_height
-            ])
+            ax_grad = fig.add_axes(
+                [box.x0 + 0.625, box.y0 + 0.05, box.width - 0.54, legend_height]
+            )
 
             gradient = np.linspace(min_val, max_val, 256).reshape(1, -1)
 
@@ -469,20 +462,16 @@ def plot_heatmap(
 
             ax_grad.set_yticks([])
             ax_grad.set_xticks([min_val, max_val])
-            ax_grad.set_xticklabels(
-                [f"{min_val:.0f}", f"{max_val:.0f}"],
-                fontsize=11
-            )
-            
+            ax_grad.set_xticklabels([f"{min_val:.0f}", f"{max_val:.0f}"], fontsize=11)
+
             ax_grad.set_title(
                 f"{covariates_2_name}",
                 fontsize=12,
-                pad=4 # Adjust padding as needed
+                pad=4,  # Adjust padding as needed
             )
-            
-            # Label below the gradient bar
-            #ax_grad.set_xlabel(covariates_2_name, fontsize=12)
 
+            # Label below the gradient bar
+            # ax_grad.set_xlabel(covariates_2_name, fontsize=12)
 
     if save_path is not None:
         plt.savefig(save_path, bbox_inches="tight")
