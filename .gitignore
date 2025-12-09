@@ -10,4 +10,4 @@ example.ipynb
 .ruff_cache/
 .vscode/
 pyesbm.egg-info/
-*.ipynb
+temp*.ipynb
