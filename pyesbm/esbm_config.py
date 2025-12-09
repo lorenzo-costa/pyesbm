@@ -98,15 +98,16 @@ class ESBMconfig:
                     f"rng must be a numpy random Generator or int. You provided {type(rng)}"
                 )
         if covariates_1 is not None:
-            if not isinstance(covariates_1, (np.ndarray, list)):
+            if not isinstance(covariates_1, CovariateClass):
                 raise TypeError(
-                    f"covariates_1 must be a numpy array or list. You provided {type(covariates_1)}"
+                    f"covariates_1 must be a CovariateClass instance. You provided {type(covariates_1)}"
                 )
         if covariates_2 is not None:
-            if not isinstance(covariates_2, (np.ndarray, list)):
+            if not isinstance(covariates_2, CovariateClass):
                 raise TypeError(
-                    f"covariates_2 must be a numpy array or list. You provided {type(covariates_2)}"
+                    f"covariates_2 must be a CovariateClass instance. You provided {type(covariates_2)}"
                 )
+        
         if not isinstance(epsilon, (int, float)):
             raise TypeError(
                 f"epsilon must be int or float. You provided {type(epsilon)}"
@@ -230,19 +231,8 @@ class ESBMconfig:
         self.verbose = verbose
         self.epsilon = epsilon
 
-        self.covariates_1 = None
-        if covariates_1 is not None:
-            self.covariates_1 = CovariateClass(alpha_c=alpha_c, 
-                                               covariates=covariates_1,
-                                               a=cov_a,
-                                               b=cov_b)
-
-        self.covariates_2 = None
-        if covariates_2 is not None:
-            self.covariates_2 = CovariateClass(alpha_c=alpha_c, 
-                                               covariates=covariates_2,
-                                               a=cov_a,
-                                               b=cov_b)
+        self.covariates_1 = covariates_1
+        self.covariates_2 = covariates_2
 
         self.train_llk = None
         self.mcmc_draws_users = None

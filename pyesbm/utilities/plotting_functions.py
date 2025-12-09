@@ -148,10 +148,13 @@ def plot_heatmap(
     # Create figure with appropriate size and layout for covariates
     fig = plt.figure(figsize=size)
 
-    # Set the layout based on whether we have covariates
+    # Set the layout
     if covariates_1 is not None or covariates_2 is not None:
         width_ratios = [0.02, 1] if covariates_1 is not None else [0, 1]
-        height_ratios = [1, 0.02] if covariates_2 is not None else [1, 0]
+        
+        # CHANGED: If Cov 2 exists, Row 0 is thin (Top Bar), Row 1 is fat (Heatmap)
+        height_ratios = [0.02, 1] if covariates_2 is not None else [0, 1]
+        
         gs = fig.add_gridspec(
             2,
             2,
@@ -161,16 +164,16 @@ def plot_heatmap(
             hspace=0.01,
         )
 
-        # Main heatmap
-        ax_heatmap = fig.add_subplot(gs[0, 1])
+        # CHANGED: Heatmap moves to Bottom Right [1, 1]
+        ax_heatmap = fig.add_subplot(gs[1, 1])
 
-        # User covariates on the left
+        # CHANGED: User covariates (Left) move to Bottom Left [1, 0]
         if covariates_1 is not None:
-            ax_cov_1 = fig.add_subplot(gs[0, 0], sharey=ax_heatmap)
+            ax_cov_1 = fig.add_subplot(gs[1, 0], sharey=ax_heatmap)
 
-        # Item covariates on the bottom
+        # CHANGED: Item covariates (Top) move to Top Right [0, 1]
         if covariates_2 is not None:
-            ax_cov_2 = fig.add_subplot(gs[1, 1], sharex=ax_heatmap)
+            ax_cov_2 = fig.add_subplot(gs[0, 1], sharex=ax_heatmap)
     else:
         ax_heatmap = fig.add_subplot(111)
 
@@ -220,7 +223,7 @@ def plot_heatmap(
             mid_point = (cluster_boundaries_2[i] + cluster_boundaries_2[i + 1]) / 2
             ax_heatmap.text(
                 mid_point / Y.shape[1],  # convert mid_point into [0,1]
-                1.05,  # slightly above top edge
+                1.12,  # slightly above top edge
                 f"C{cluster_label}",
                 transform=ax_heatmap.transAxes,
                 verticalalignment="top",
@@ -246,7 +249,7 @@ def plot_heatmap(
         if covariates_1_type == 'categorical':
             # Get unique categories and assign colors
             unique_user_cats = sorted(set(sorted_user_covs))
-            user_cmap = plt.get_cmap("tab10", len(unique_user_cats))
+            user_cmap = plt.get_cmap("inferno", len(unique_user_cats))
             user_color_dict = {cat: user_cmap(i) for i, cat in enumerate(unique_user_cats)}
 
             # Create color matrix for user covariates
@@ -270,13 +273,13 @@ def plot_heatmap(
 
             # Add a legend for user covariates
             user_legend_elements = [
-                Rectangle((0, 0), 1, 1, color=user_color_dict[cat], label=str(cat))
+                Rectangle((0, 0), 0.5, 0.5, color=user_color_dict[cat], label=str(cat))
                 for cat in unique_user_cats
             ]
             ax_cov_1.legend(
                 handles=user_legend_elements,
                 title=covariates_1_name,
-                bbox_to_anchor=(0.1, 0.1),
+                bbox_to_anchor=(-3, 0.15),
                 loc="center right",
             )
             
@@ -310,13 +313,12 @@ def plot_heatmap(
             # Add a discrete colorbar below the covariate bar
             box = ax_cov_1.get_position()
 
-            legend_height = 0.025      # was 0.025 → now twice as big
-            bottom_padding = 0.085    # move it further down from cov bar
+            legend_height = 0.025 
 
             ax_grad = fig.add_axes([
-                box.x0,               # same x
-                box.y0 - bottom_padding,
-                box.width+0.05,            # same width
+                box.x0 - 0.1,               
+                box.y0 - 0.05,
+                box.width+0.05,            
                 legend_height
             ])
 
@@ -334,13 +336,13 @@ def plot_heatmap(
             ax_grad.set_xticks([min_val, max_val])
             ax_grad.set_xticklabels(
                 [f"{min_val}", f"{max_val}"],
-                fontsize=11           # slightly larger
+                fontsize=11
             )
 
             ax_grad.set_title(
-                covariates_1_name,
+                f"{covariates_1_name}",
                 fontsize=12,
-                pad=4                # more breathing room
+                pad=4                
             )
 
             # # Use colorbar instead of legend (numeric variable)
@@ -364,7 +366,7 @@ def plot_heatmap(
         if covariates_2_type == 'categorical':
             # Get unique categories and assign colors
             unique_item_cats = sorted(set(sorted_item_covs))
-            item_cmap = plt.get_cmap("tab10", len(unique_item_cats))
+            item_cmap = plt.get_cmap("inferno", len(unique_item_cats))
             item_color_dict = {cat: item_cmap(i) for i, cat in enumerate(unique_item_cats)}
 
             # Create color matrix for item covariates
@@ -404,9 +406,82 @@ def plot_heatmap(
             ax_cov_2.legend(
                 handles=item_legend_elements,
                 title=covariates_2_name,
-                bbox_to_anchor=(0.25, -5),
+                bbox_to_anchor=(1.2, 5),
                 loc="center right",
             )
+        elif covariates_2_type == "count":
+            cov_arr = np.array(sorted_item_covs).astype(float)
+
+            min_val = np.min(cov_arr)
+            max_val = np.max(cov_arr)
+            n_levels = int(max_val - min_val + 1)
+
+            count_cmap = plt.get_cmap("inferno", n_levels)
+
+            # Reshape for horizontal bar (1 row, N columns)
+            item_cov_matrix = cov_arr.reshape(1, -1)
+
+            # Align position exactly with heatmap width
+            heatmap_pos = ax_heatmap.get_position()
+            ax_cov_2.set_position(
+                [
+                    heatmap_pos.x0,
+                    ax_cov_2.get_position().y0,
+                    heatmap_pos.width,
+                    ax_cov_2.get_position().height,
+                ]
+            )
+
+            # Plot discrete gradient (horizontal extent)
+            item_img = ax_cov_2.imshow(
+                item_cov_matrix,
+                aspect="auto",
+                origin="upper",
+                cmap=count_cmap,
+                extent=[0, len(cov_arr), 1, 0],
+                vmin=min_val - 0.5,
+                vmax=max_val + 0.5,
+            )
+
+            ax_cov_2.set_xticks([])
+            ax_cov_2.set_yticks([])
+
+            # Add discrete colorbar/legend below
+            box = ax_cov_2.get_position()
+            
+            legend_height = 0.025
+
+            ax_grad = fig.add_axes([
+                box.x0 + 0.625,
+                box.y0+0.05, 
+                box.width-0.54,
+                legend_height
+            ])
+
+            gradient = np.linspace(min_val, max_val, 256).reshape(1, -1)
+
+            ax_grad.imshow(
+                gradient,
+                aspect="auto",
+                cmap=count_cmap,
+                extent=[min_val, max_val, 0, 1],
+            )
+
+            ax_grad.set_yticks([])
+            ax_grad.set_xticks([min_val, max_val])
+            ax_grad.set_xticklabels(
+                [f"{min_val:.0f}", f"{max_val:.0f}"],
+                fontsize=11
+            )
+            
+            ax_grad.set_title(
+                f"{covariates_2_name}",
+                fontsize=12,
+                pad=4 # Adjust padding as needed
+            )
+            
+            # Label below the gradient bar
+            #ax_grad.set_xlabel(covariates_2_name, fontsize=12)
 
 
     if save_path is not None:
