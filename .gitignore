@@ -11,4 +11,4 @@ example.ipynb
 .vscode/
 pyesbm.egg-info/
 temp*.ipynb
-.vscode/
+.vscode
