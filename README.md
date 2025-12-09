@@ -1,3 +1,5 @@
+[![Project Status: Active …](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+
 # pyesbm
 
 Python code for modeling and inference using [Extended Stochastic Block Models](https://doi.org/10.1214/21-AOAS1595). See the [examples](pyesbm/examples/) for user-friendly illustration.
@@ -12,6 +14,13 @@ Python code for modeling and inference using [Extended Stochastic Block Models](
 
 * Flexible framework that allows users to specify their own model for edges, prior on the clustering partition or covariate types.
 
-
-
-
+### Installation
+Create a new virtual environment in the parent directory of `pyesbm`
+```bash
+python -m venv ../pyesbmenv
+source ../pyesbmenv/bin/activate
+```
+Build the package
+```bash
+pip install -e .
+```
