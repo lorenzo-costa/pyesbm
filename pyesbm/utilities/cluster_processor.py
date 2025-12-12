@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class ClusterProcessor:
     def __init__(
         self,

@@ -177,7 +177,7 @@ def validate_models(
     return model_list_out
 
 
-def generate_val_set(y, size=0.1, seed=42, only_observed=True):
+def generate_val_set(y, size=0.1, rng=None, only_observed=True):
     """Generates validation and training set from a given rating matrix.
 
     Parameters
@@ -199,17 +199,16 @@ def generate_val_set(y, size=0.1, seed=42, only_observed=True):
         The validation set as a list of (user, item, rating) tuples.
     """
 
-    np.random.seed(seed)
     n_users, n_items = y.shape
     n_val = int(size * n_users * n_items)
     y_val = []
     for _ in range(n_val):
-        u = np.random.randint(n_users)
-        i = np.random.randint(n_items)
+        u = rng.randint(n_users)
+        i = rng.randint(n_items)
         if only_observed:
             while y[u, i] == 0:
-                u = np.random.randint(n_users)
-                i = np.random.randint(n_items)
+                u = rng.randint(n_users)
+                i = rng.randint(n_items)
         y_val.append((u, i, int(y[u, i])))
 
     y_train = y.copy()
@@ -330,11 +329,11 @@ def multiple_runs(
         if verbose > 0:
             print("\n\nRun", r + 1, "out of", n_runs)
 
-        np.random.seed(seed + r)
+        rng = np.random.default_rng(seed + r)
 
         true_model = true_mod(**params_init)
         Y_train, Y_val = generate_val_set(
-            true_model.Y, size=0.1, seed=42, only_observed=False
+            true_model.Y, size=0.1, rng=rng, only_observed=False
         )
         true_users = true_model.user_clustering.copy()
         true_items = true_model.item_clustering.copy()
@@ -343,14 +342,14 @@ def multiple_runs(
         temp = np.array(
             [True if true_users[i] % 2 == 0 else False for i in range(num_users)]
         )
-        idxs = np.random.choice(num_users, size=int(0.05 * num_users), replace=False)
+        idxs = rng.choice(num_users, size=int(0.05 * num_users), replace=False)
         temp[idxs] = ~temp[idxs]
         cov_users = [("cov1_cat", temp.astype(int).copy())]
 
         temp = np.array(
             [True if true_items[i] % 2 == 0 else False for i in range(num_items)]
         )
-        idxs = np.random.choice(num_items, size=int(0.05 * num_items), replace=False)
+        idxs = rng.choice(num_items, size=int(0.05 * num_items), replace=False)
         temp[idxs] = ~temp[idxs]
         cov_items = [("cov1_cat", temp.astype(int).copy())]
 

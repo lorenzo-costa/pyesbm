@@ -12,6 +12,8 @@ from pyesbm.utilities import (
 
 from pyesbm.esbm_config import ESBMconfig
 
+from pyesbm.utilities.plotting_functions import plot_trace
+
 
 #########################################
 # baseline class
@@ -532,7 +534,21 @@ class BaseESBM(ESBMconfig):
 
         return est_cluster_1, vi_value_1, est_cluster_2, vi_value_2
 
-    def point_predict(self, pairs, seed=None):
+    def plot_trace(self, start=0, save_path=None, figsize=(6, 4)):
+        """Plot trace of log-likelihood during training."""
+        if self.train_llk is None:
+            raise Exception("model must be trained first")
+        plot_trace(
+            self.train_llk[start:], 
+            save_path=save_path, 
+            figsize=figsize,
+            title="Log-likelihood Trace",
+            xlabel="Iteration",
+            ylabel="Log-likelihood"
+            )
+
+
+    def point_predict(self, pairs, rng=None):
         """Predict ratings for user-item pairs.
 
         Parameters
@@ -548,36 +564,7 @@ class BaseESBM(ESBMconfig):
             List of predicted ratings corresponding to the input pairs.
         """
 
-        if not isinstance(pairs, list):
-            raise TypeError("pairs must be a list of tuples")
-        for p in pairs:
-            if not isinstance(p, tuple) or len(p) != 2:
-                raise ValueError("each pair must be a tuple of (user, item)")
-            u, i = p
-            if not (0 <= u < self.num_users):
-                raise ValueError(f"user index {u} out of bounds")
-            if not (0 <= i < self.num_items):
-                raise ValueError(f"item index {i} out of bounds")
-
-        if seed is None:
-            np.random.seed(self.seed)
-        elif seed == -1:
-            pass
-        else:
-            np.random.seed(seed)
-
-        uniques_ratings, frequencies_ratings = np.unique(self.Y, return_counts=True)
-
-        preds = []
-        for u, i in pairs:
-            # baseline: predict with predictive posterior mean
-            preds.append(
-                self.rng.choice(
-                    uniques_ratings, p=frequencies_ratings / np.sum(frequencies_ratings)
-                )
-            )
-
-        return preds
+        raise NotImplementedError("not implemented yet")
 
     def predict_with_ranking(self, users):
         """Predict items for users based on cluster with highest score.
@@ -592,14 +579,7 @@ class BaseESBM(ESBMconfig):
         list
             List of predicted item indices for each user.
         """
-        top_cluster = []
-        for u in users:
-            # baseline: completely random
-            num = np.random.randint(1, self.num_items)
-            choice = np.random.choice(self.num_items, num, replace=False)
-            top_cluster.append(choice)
-
-        return top_cluster
+        raise NotImplementedError("not implemented yet")
 
     def predict_k(self, users, k):
         """Predict k items for each user based on cluster with highest score.
@@ -616,26 +596,8 @@ class BaseESBM(ESBMconfig):
         list
             List of predicted item indices for each user.
         """
-        if not isinstance(users, (list, np.ndarray, int)):
-            raise TypeError(
-                "users must be a a user index or a list/array of user indices"
-            )
-        if not isinstance(users, (list, np.ndarray)):
-            users = [users]
-        for u in users:
-            if not (0 <= u < self.num_users):
-                raise ValueError(f"user index {u} out of bounds")
+        raise NotImplementedError("not implemented yet")
 
-        if not isinstance(k, int) or k <= 0:
-            raise ValueError("k must be a positive integer")
-
-        out = []
-        for u in users:
-            # baseline: completely random
-            choice = np.random.choice(self.num_items, k, replace=False)
-            out.append(choice)
-
-        return out
 
     def _process_clusters(self, clustering, side=1):
         """Computes cluster metrics.

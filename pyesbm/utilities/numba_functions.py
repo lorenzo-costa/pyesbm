@@ -7,11 +7,14 @@ import numba as nb
 from math import lgamma
 import numpy as np
 
+import os
+# warning raised within numba, silence it globally
+os.environ['KMP_WARNINGS'] = '0'
 
 ###########################################
 # log-likelihood computation functions
 ##############################################
-@nb.jit(nopython=True, fastmath=True)
+# @nb.jit(nopython=True, fastmath=True)
 def compute_llk_poisson(
     a,
     b,
@@ -101,7 +104,7 @@ def compute_llk_poisson(
 
     return out
 
-@nb.jit(nopython=True, fastmath=True)
+# @nb.jit(nopython=True, fastmath=True)
 def compute_llk_bernoulli(
     a,
     b,
@@ -154,7 +157,7 @@ def compute_llk_bernoulli(
 ###################################
 # gibbs-type prior functions
 ####################################
-@nb.jit(nopython=True)
+# @nb.jit(nopython=True, fastmath=True)
 def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, gamma):
     """Probability of sampling each cluster (and a new one) under Gibbs-type priors.
 
@@ -214,7 +217,7 @@ def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, 
 
     return probs
 
-@nb.jit(parallel=True, fastmath=True)
+# @nb.jit(nopython=True, fastmath=True)
 def probs_gnedin(V, h_vals, gamma=0.5):
     """Probability of having h clusters under Gnedin Process prior."""
 
@@ -227,7 +230,7 @@ def probs_gnedin(V, h_vals, gamma=0.5):
     lgamma_V_plus_gamma = lgamma(V + gamma)
     log_gamma = np.log(gamma)
     
-    for i in nb.prange(n):
+    for i in range(n):
         val_h = h_vals[i]
 
         l_choose = lgamma_V_plus_1 - lgamma(val_h + 1) - lgamma(V - val_h + 1)
@@ -247,7 +250,7 @@ def probs_gnedin(V, h_vals, gamma=0.5):
 #################################
 # log probability computation for gibbs sampling steps
 #################################
-@nb.njit(fastmath=True, parallel=False)
+# @nb.njit(fastmath=True, parallel=False)
 def update_prob_poissongamma(
     num_components,
     mhk,
@@ -340,7 +343,7 @@ def update_prob_poissongamma(
     return log_probs
 
 
-@nb.njit(fastmath=True, parallel=False)
+# @nb.njit(fastmath=True, parallel=False)
 def update_prob_betabernoulli(
     num_components,
     mhk,
@@ -429,7 +432,7 @@ def update_prob_betabernoulli(
 ##########################################
 
 
-@nb.jit(nopython=True)
+# @nb.jit(nopython=True)
 def compute_logits_count(
     num_components, idx, nch, nch_minus, cov_values, nh, nh_minus, a, b
 ):
@@ -488,7 +491,7 @@ def compute_logits_count(
     return log_probs
 
 
-@nb.jit(nopython=True)
+# @nb.jit(nopython=True)
 def compute_logits_categorical(
     num_components,
     idx,

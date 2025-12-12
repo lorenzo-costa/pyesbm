@@ -477,3 +477,23 @@ def plot_heatmap(
         plt.savefig(save_path, bbox_inches="tight")
     else:
         plt.show()
+
+
+def plot_trace(
+    samples,
+    figsize=(8, 4),
+    xlabel="Iteration",
+    ylabel="Sample Value",
+    title="Trace Plot",
+    save_path=None,
+):
+    plt.figure(figsize=figsize)
+    plt.plot(samples, color="blue", alpha=0.7)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+
+    if save_path is not None:
+        plt.savefig(save_path, bbox_inches="tight")
+    else:
+        plt.show()

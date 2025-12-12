@@ -30,14 +30,10 @@ class ESBMconfig:
             bipartite=bipartite,
             clustering=clustering,
             degree_correction=degree_correction,
-            alpha_c=alpha_c,
             covariates_1=covariates_1,
             covariates_2=covariates_2,
             epsilon=epsilon,
             rng=rng,
-            verbose=verbose,
-            cov_a=cov_a,
-            cov_b=cov_b,
         )
 
         self._process_args(
@@ -45,16 +41,11 @@ class ESBMconfig:
             likelihood=likelihood,
             prior=prior,
             bipartite=bipartite,
-            clustering=clustering,
             degree_correction=degree_correction,
-            alpha_c=alpha_c,
             covariates_1=covariates_1,
             covariates_2=covariates_2,
             epsilon=epsilon,
-            rng=rng,
             verbose=verbose,
-            cov_a=cov_a,
-            cov_b=cov_b,
         )
 
     def _type_check(
@@ -65,14 +56,10 @@ class ESBMconfig:
         bipartite,
         clustering,
         degree_correction,
-        alpha_c,
         covariates_1,
         covariates_2,
         epsilon,
         rng,
-        verbose,
-        cov_a,
-        cov_b,
     ):
         if not isinstance(Y, (np.ndarray, list)):
             raise TypeError(f"Y must be a numpy array or list. You provided {type(Y)}")
@@ -224,16 +211,11 @@ class ESBMconfig:
         likelihood,
         prior,
         bipartite,
-        clustering,
         degree_correction,
-        alpha_c,
         covariates_1,
         covariates_2,
         epsilon,
-        rng,
         verbose,
-        cov_a,
-        cov_b,
     ):
         self.Y = Y
         self.prior = prior
