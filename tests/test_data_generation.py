@@ -3,13 +3,6 @@ import sys
 from pathlib import Path
 import numpy as np
 from pyesbm.utilities.data_generation import generate_poisson_data, generate_bernoulli_data
-# sys.path.append(str(Path(__file__).parent.parent))
-
-# from pyesbm.baseline import Baseline
-# # from src.analysis.models.esbm_rec import Esbm
-# # from src.analysis.models.dc_esbm_rec import Dcesbm
-# # from src.analysis.utilities.numba_functions import compute_log_likelihood
-# # from src.analysis.utilities.valid_functs import generate_val_set
 
 
 class TestIndividualFunctions:

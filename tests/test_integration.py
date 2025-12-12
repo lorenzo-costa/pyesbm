@@ -6,7 +6,7 @@ import warnings
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from pyesbm.baseline import BaseESBM
+from pyesbm.model import BaseESBM
 from pyesbm.utilities.misc_functs import generate_poisson_data, generate_bernoulli_data
 from pyesbm.priors import GibbsTypePrior
 from pyesbm.likelihoods import PoissonGamma, BetaBernoulli
