@@ -2,6 +2,7 @@ from .numba_functions import (
     sampling_scheme,
     compute_logits_categorical,
     compute_logits_count,
+    probs_gnedin
 )
 from .misc_functs import compute_co_clustering_matrix
 from .vi_functs import minVI
@@ -21,4 +22,5 @@ __all__ = [
     "compute_yuk",
     "compute_yih",
     "ClusterProcessor",
+    "probs_gnedin",
 ]

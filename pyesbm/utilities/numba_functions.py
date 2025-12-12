@@ -11,8 +11,6 @@ import numpy as np
 ###########################################
 # log-likelihood computation functions
 ##############################################
-
-
 @nb.jit(nopython=True, fastmath=True)
 def compute_llk_poisson(
     a,
@@ -103,7 +101,7 @@ def compute_llk_poisson(
 
     return out
 
-
+@nb.jit(nopython=True, fastmath=True)
 def compute_llk_bernoulli(
     a,
     b,
@@ -154,10 +152,8 @@ def compute_llk_bernoulli(
 
 
 ###################################
-# gibbs-type prior sampling scheme
+# gibbs-type prior functions
 ####################################
-
-
 @nb.jit(nopython=True)
 def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, gamma):
     """Probability of sampling each cluster (and a new one) under Gibbs-type priors.
@@ -185,7 +181,6 @@ def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, 
     -------
     probs : array-like
         probabilities of sampling each cluster and a new cluster
-
     """
 
     if scheme_type == 1:
@@ -219,12 +214,39 @@ def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, 
 
     return probs
 
+@nb.jit(parallel=True, fastmath=True)
+def probs_gnedin(V, h_vals, gamma=0.5):
+    """Probability of having h clusters under Gnedin Process prior."""
+
+    n = len(h_vals)
+    result = np.empty(n, dtype=np.float64)
+    
+    # pre-compute constants invariant to the loop
+    lgamma_V_plus_1 = lgamma(V + 1)
+    lgamma_1_minus_gamma = lgamma(1.0 - gamma)
+    lgamma_V_plus_gamma = lgamma(V + gamma)
+    log_gamma = np.log(gamma)
+    
+    for i in nb.prange(n):
+        val_h = h_vals[i]
+
+        l_choose = lgamma_V_plus_1 - lgamma(val_h + 1) - lgamma(V - val_h + 1)
+        
+        log_res = (l_choose + 
+                   lgamma(val_h - gamma) - 
+                   lgamma_1_minus_gamma + 
+                   log_gamma + 
+                   lgamma(V + gamma - val_h) - 
+                   lgamma_V_plus_gamma)
+        
+        result[i] = np.exp(log_res)
+        
+    return result
+
 
 #################################
 # log probability computation for gibbs sampling steps
 #################################
-
-
 @nb.njit(fastmath=True, parallel=False)
 def update_prob_poissongamma(
     num_components,

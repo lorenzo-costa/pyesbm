@@ -1,6 +1,8 @@
 import warnings
 import numpy as np
+from scipy.special import digamma, gammaln
 from pyesbm.utilities import sampling_scheme
+from pyesbm.utilities import probs_gnedin
 
 
 class BasePrior:
@@ -55,6 +57,48 @@ class GibbsTypePrior(BasePrior):
         self.num_nodes_1 = num_nodes_1
         self.num_nodes_2 = num_nodes_2
         self.scheme_dict = {"DM": 1, "DP": 2, "PY": 3, "GN": 4}
+    
+    def expected_num_clusters(self, n):
+        """Compute prior expected number of clusters.
+        
+        Parameters
+        ----------
+        n : int
+            Number of nodes.
+        
+        Returns
+        -------
+        float
+            Expected number of clusters.
+        """
+        
+        if self.scheme_type == "DP":
+            alpha = self.scheme_param
+            # digamma more efficient than sum
+            return alpha * (digamma(alpha + n) - digamma(alpha))
+        
+        if self.scheme_type == "PY":
+            alpha = self.scheme_param
+            sigma = self.sigma
+            log_term = (gammaln(alpha + sigma + n) - gammaln(alpha + sigma) - 
+                        gammaln(alpha + n) + gammaln(alpha + 1))
+            return (1.0 / sigma) * np.exp(log_term) - (alpha / sigma)
+
+        if self.scheme_type == "DM":
+            theta = self.scheme_param
+            H = self.bar_h
+            A = theta * (1 - 1.0/H)
+            B = theta
+            
+            log_prod = (gammaln(A + n) - gammaln(A)) - (gammaln(B + n) - gammaln(B))
+            return H - H * np.exp(log_prod)
+        
+        if self.scheme_type == "GN":
+            gamma = self.gamma
+            h_vals = np.arange(1, n + 1) 
+            p = probs_gnedin(n, h_vals, gamma=gamma)
+
+            return  np.sum(h_vals * p)
 
     def _type_check(self, **kwargs):
         scheme_type = kwargs.get("scheme_type")
