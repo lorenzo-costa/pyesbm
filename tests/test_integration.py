@@ -7,9 +7,10 @@ import warnings
 sys.path.append(str(Path(__file__).parent.parent))
 
 from pyesbm.model import BaseESBM
-from pyesbm.utilities.misc_functs import generate_poisson_data, generate_bernoulli_data
+from pyesbm.utilities import generate_poisson_data, generate_bernoulli_data
 from pyesbm.priors import GibbsTypePrior
 from pyesbm.likelihoods import PoissonGamma, BetaBernoulli
+from pyesbm.covariates import CategoricalCovariate, CountCovariate
 
 
 class TestBaseESBM:
@@ -69,20 +70,6 @@ class TestBaseESBM:
         cls.t2[np.random.randint(0, len(cls.t2), size=25)] = 0
         cls.t3[np.random.randint(0, len(cls.t3), size=20)] = 2
         cls.t4[np.random.randint(0, len(cls.t4), size=20)] = 0
-
-        cls.covs_1 = [
-            ("genre_categorical", cls.t1.copy()),
-            ("genre2_categorical", cls.t2.copy()),
-        ]
-
-        cls.covs_2 = [
-            ("type_categorical", cls.t3.copy()),
-            ("type2_categorical", cls.t4.copy()),
-        ]
-
-        cls.covs_3 = [("genre_count", cls.t1.copy()), ("genre2_count", cls.t2.copy())]
-
-        cls.covs_4 = [("type_count", cls.t3.copy()), ("type2_count", cls.t4.copy())]
 
         cls.rng_gen = np.random.default_rng(42)
 
@@ -263,6 +250,17 @@ class TestBaseESBM:
         b = np.random.permutation(self.n_2)
         Y = Y[a][:, b]
 
+        cov1 = (
+            CategoricalCovariate(self.t1)
+            if cov_type == "categorical"
+            else CountCovariate(self.t1)
+        )
+        cov2 = (
+            CategoricalCovariate(self.t3)
+            if cov_type == "categorical"
+            else CountCovariate(self.t3)
+        )
+
         prior = GibbsTypePrior(
             scheme_type=prior_type,
             scheme_param=1.5,
@@ -278,8 +276,8 @@ class TestBaseESBM:
             Y,
             prior=prior,
             likelihood=likelihood,
-            covariates_1=self.covs_1 if cov_type == "categorical" else self.covs_3,
-            covariates_2=self.covs_2,
+            covariates_1=[cov1],
+            covariates_2=[cov2],
             epsilon=1e-10,
             bipartite=True,
             verbose=False,
@@ -327,12 +325,23 @@ class TestBaseESBM:
 
         likelihood = BetaBernoulli(alpha=1, beta=1)
 
+        cov1 = (
+            CategoricalCovariate(self.t1)
+            if cov_type == "categorical"
+            else CountCovariate(self.t1)
+        )
+        cov2 = (
+            CategoricalCovariate(self.t3)
+            if cov_type == "categorical"
+            else CountCovariate(self.t3)
+        )
+
         model = BaseESBM(
             Y,
             prior=prior,
             likelihood=likelihood,
-            covariates_1=self.covs_1 if cov_type == "categorical" else self.covs_3,
-            covariates_2=self.covs_2 if cov_type == "categorical" else self.covs_4,
+            covariates_1=[cov1],
+            covariates_2=[cov2],
             epsilon=1e-10,
             bipartite=True,
             verbose=False,
@@ -373,11 +382,17 @@ class TestBaseESBM:
 
         likelihood = PoissonGamma(shape=1, rate=1)
 
+        cov1 = (
+            CategoricalCovariate(self.t1)
+            if cov_type == "categorical"
+            else CountCovariate(self.t1)
+        )
+
         model = BaseESBM(
             Y,
             prior=prior,
             likelihood=likelihood,
-            covariates_1=self.covs_1 if cov_type == "categorical" else self.covs_3,
+            covariates_1=[cov1],
             epsilon=1e-10,
             bipartite=False,
             verbose=False,
@@ -418,11 +433,17 @@ class TestBaseESBM:
 
         likelihood = BetaBernoulli(alpha=1, beta=1)
 
+        cov1 = (
+            CategoricalCovariate(self.t1)
+            if cov_type == "categorical"
+            else CountCovariate(self.t1)
+        )
+
         model = BaseESBM(
             Y,
             prior=prior,
             likelihood=likelihood,
-            covariates_1=self.covs_1 if cov_type == "categorical" else self.covs_3,
+            covariates_1=[cov1],
             epsilon=1e-10,
             bipartite=False,
             verbose=False,

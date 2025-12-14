@@ -14,7 +14,6 @@ class TestBetaBernoulliLikelihood:
         # Placeholder test to ensure the test suite runs without errors.
 
     def test_log_likelihood(self):
-
         likelihood = BetaBernoulli(alpha=1.0, beta=1.0)
 
         # Simple test case
@@ -29,7 +28,7 @@ class TestBetaBernoulliLikelihood:
             clustering_other_side=clustering,
         )
         assert isinstance(log_lik, float)
-    
+
     def test_point_predict(self):
         likelihood = BetaBernoulli(alpha=1.0, beta=1.0)
 
@@ -48,23 +47,22 @@ class TestBetaBernoulliLikelihood:
         )
         assert len(prob_pairs) == len(pairs)
         assert all(0.0 <= p <= 1.0 for p in prob_pairs)
-        
+
         for i in range(len(pairs)):
             p = pairs[i]
             c = (clustering[p[0]], clustering[p[1]])
             expected_prob = (mhk[c] + likelihood.alpha) / (
-                frequencies[c[0]] * frequencies[c[1]] + likelihood.alpha + likelihood.beta
+                frequencies[c[0]] * frequencies[c[1]]
+                + likelihood.alpha
+                + likelihood.beta
             )
 
             assert np.isclose((prob_pairs[i]), expected_prob)
-    
+
     def test_sample_llk_edges(self):
         likelihood = BetaBernoulli(alpha=1.0, beta=1.0)
-        
-        Y = np.array([[1, 1, 0],
-                      [1, 0, 1],
-                      [0, 1 , 0],
-                      [0, 0, 1]])
+
+        Y = np.array([[1, 1, 0], [1, 0, 1], [0, 1, 0], [0, 0, 1]])
         clustering_1 = np.array([0, 0, 1])
         clustering_2 = np.array([0, 1, 1, 1])
         mhk = np.array([[2, 1], [1, 0]])
@@ -81,11 +79,10 @@ class TestBetaBernoulliLikelihood:
             bipartite=True,
             rng=np.random.default_rng(42),
         )
-        
+
         assert len(llk_edges) == Y.shape[0] * Y.shape[1]
         assert all(isinstance(llk, float) for llk in llk_edges)
-        
-        
+
 
 class TestPoissonGammaLikelihood:
     def test_placeholder(self):
@@ -93,7 +90,6 @@ class TestPoissonGammaLikelihood:
         # Placeholder test to ensure the test suite runs without errors.
 
     def test_log_likelihood(self):
-
         likelihood = PoissonGamma(shape=2.0, rate=1.0)
 
         # Simple test case
@@ -108,7 +104,7 @@ class TestPoissonGammaLikelihood:
             clustering_other_side=clustering,
         )
         assert isinstance(log_lik, float)
-    
+
     def test_point_predict(self):
         likelihood = PoissonGamma(shape=2.0, rate=1.0)
 
@@ -127,7 +123,7 @@ class TestPoissonGammaLikelihood:
         )
         assert len(rate_pairs) == len(pairs)
         assert all(r >= 0.0 for r in rate_pairs)
-        
+
         for i in range(len(pairs)):
             p = pairs[i]
             c = (clustering[p[0]], clustering[p[1]])

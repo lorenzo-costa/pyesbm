@@ -2,14 +2,14 @@ import pytest
 import sys
 from pathlib import Path
 import numpy as np
-from pyesbm.utilities.data_generation import generate_poisson_data, generate_bernoulli_data
+from pyesbm.utilities import generate_poisson_data, generate_bernoulli_data
 
 
 class TestIndividualFunctions:
     def test_placeholder(self):
         assert True
         # Placeholder test to ensure the test suite runs without errors.
-    
+
     @pytest.mark.parametrize(
         "n1,n2,bipartite",
         [
@@ -17,14 +17,14 @@ class TestIndividualFunctions:
             (10, 15, False),
             (20, 20, True),
             (20, 20, False),
-            
         ],
     )
-    def test_poisson_generation(self,
-                                n1,
-                                n2, 
-                                bipartite,
-                                ):
+    def test_poisson_generation(
+        self,
+        n1,
+        n2,
+        bipartite,
+    ):
         """Test Poisson data generation for both bipartite and unipartite cases."""
         rng = np.random.default_rng(42)
         prior_shape = 2.0
@@ -50,7 +50,9 @@ class TestIndividualFunctions:
                 rng=rng,
             )
             assert Y.shape == (n1, n1)
-            assert np.allclose(Y, Y.T), "Adjacency matrix should be symmetric for unipartite graphs."
+            assert np.allclose(Y, Y.T), (
+                "Adjacency matrix should be symmetric for unipartite graphs."
+            )
 
     @pytest.mark.parametrize(
         "n1,n2,bipartite",
@@ -61,10 +63,7 @@ class TestIndividualFunctions:
             (20, 20, False),
         ],
     )
-    def test_bernoulli_generation(self,
-                                   n1,
-                                   n2,
-                                   bipartite):
+    def test_bernoulli_generation(self, n1, n2, bipartite):
         """Test Bernoulli data generation for both bipartite and unipartite cases."""
         rng = np.random.default_rng(42)
         prior_alpha = 2.0
@@ -90,4 +89,6 @@ class TestIndividualFunctions:
                 rng=rng,
             )
             assert Y.shape == (n1, n1)
-            assert np.allclose(Y, Y.T), "Adjacency matrix should be symmetric for unipartite graphs."
+            assert np.allclose(Y, Y.T), (
+                "Adjacency matrix should be symmetric for unipartite graphs."
+            )

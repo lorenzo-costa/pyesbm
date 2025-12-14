@@ -3,12 +3,18 @@ from .numba_functions import (
     compute_logits_categorical,
     compute_logits_count,
     probs_gnedin,
-    waic_calculation
+    waic_calculation,
 )
 
 from .vi_functs import minVI
 
-from .matrix_operations import compute_mhk, compute_y_values, compute_co_clustering_matrix
+from .matrix_operations import (
+    compute_mhk,
+    compute_y_values,
+    compute_co_clustering_matrix,
+)
+
+from .data_generation import generate_poisson_data, generate_bernoulli_data
 
 from .cluster_processor import ClusterProcessor
 
@@ -25,4 +31,6 @@ __all__ = [
     "ClusterProcessor",
     "probs_gnedin",
     "waic_calculation",
+    "generate_poisson_data",
+    "generate_bernoulli_data",
 ]

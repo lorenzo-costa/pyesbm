@@ -206,6 +206,7 @@ class TestSamplingSchemes:
 
         assert np.all(out_py == out_dp)
 
+
 class TestExpectedValue:
     # base set
     params_dm = {
@@ -241,7 +242,7 @@ class TestExpectedValue:
     }
 
     eps = 1e-6
-    
+
     @pytest.mark.parametrize(
         "n",
         [10, 50, 100, 200],
@@ -252,14 +253,14 @@ class TestExpectedValue:
         H = params_updated["bar_h"]
         prior = GibbsTypePrior(**params_updated)
         expected = prior.expected_num_clusters(n)
-        
+
         b = params_updated["scheme_param"]
-        a = b * (1-1/H)
+        a = b * (1 - 1 / H)
 
         log_prod = (gammaln(a + n) - gammaln(a)) - (gammaln(b + n) - gammaln(b))
 
         true_value = H - H * np.exp(log_prod)
-        
+
         assert abs(expected - true_value) < self.eps
 
     @pytest.mark.parametrize(
@@ -270,13 +271,13 @@ class TestExpectedValue:
         params_updated = self.params_dp.copy()
         prior = GibbsTypePrior(**params_updated)
         expected = prior.expected_num_clusters(n)
-        
+
         alpha = params_updated["scheme_param"]
 
-        true_value = (alpha / (alpha + np.arange(1, n+1) -1)).sum()
+        true_value = (alpha / (alpha + np.arange(1, n + 1) - 1)).sum()
 
         assert abs(expected - true_value) < self.eps
-    
+
     @pytest.mark.parametrize(
         "n",
         [10, 50, 100, 200],
@@ -285,17 +286,21 @@ class TestExpectedValue:
         params_updated = self.params_py.copy()
         prior = GibbsTypePrior(**params_updated)
         expected = prior.expected_num_clusters(n)
-        
+
         sigma = params_updated["sigma"]
         alpha = params_updated["scheme_param"]
 
-        log_term = (gammaln(alpha + sigma + n) - gammaln(alpha + sigma) - 
-                        gammaln(alpha + n) + gammaln(alpha + 1))
-        
+        log_term = (
+            gammaln(alpha + sigma + n)
+            - gammaln(alpha + sigma)
+            - gammaln(alpha + n)
+            + gammaln(alpha + 1)
+        )
+
         true_value = 2 * np.exp(log_term) - 2
-        
+
         assert abs(expected - true_value) < self.eps
-    
+
     @pytest.mark.parametrize(
         "n",
         [10, 50, 100, 200],
@@ -304,7 +309,7 @@ class TestExpectedValue:
         params_updated = self.params_gn.copy()
         prior = GibbsTypePrior(**params_updated)
         expected = prior.expected_num_clusters(n)
-        
+
         gamma = params_updated["gamma"]
 
         lgamma_V_plus_1 = gammaln(n + 1)
@@ -313,12 +318,18 @@ class TestExpectedValue:
 
         h = np.arange(1, n + 1)
 
-        log_terms = (lgamma_V_plus_1 - gammaln(h + 1) - gammaln(n - h + 1) +
-                     gammaln(h - gamma) - lgamma_1_minus_gamma +
-                     np.log(gamma) +
-                     gammaln(n + gamma - h) - lgamma_V_plus_gamma)
+        log_terms = (
+            lgamma_V_plus_1
+            - gammaln(h + 1)
+            - gammaln(n - h + 1)
+            + gammaln(h - gamma)
+            - lgamma_1_minus_gamma
+            + np.log(gamma)
+            + gammaln(n + gamma - h)
+            - lgamma_V_plus_gamma
+        )
 
         probs = np.exp(log_terms)
         true_value = np.sum(h * probs)
 
-        assert abs(expected - true_value) < self.eps    
+        assert abs(expected - true_value) < self.eps

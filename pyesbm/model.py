@@ -18,7 +18,6 @@ from pyesbm.utilities.plotting_functions import plot_trace
 from pyesbm.utilities.vi_functs import credibleball
 
 
-
 #########################################
 # baseline class
 ########################################
@@ -84,7 +83,6 @@ class BaseESBM(ESBMconfig):
         rng=None,
         verbose=False,
     ):
-
         super().__init__(
             Y=Y,
             likelihood=likelihood,
@@ -155,7 +153,7 @@ class BaseESBM(ESBMconfig):
             self.covariates_2.get_nch(
                 clustering=self.clustering_2, num_clusters=self.num_clusters_2
             )
-        
+
         self.estimation_method = None
 
     def gibbs_step(self, side=1):
@@ -263,7 +261,7 @@ class BaseESBM(ESBMconfig):
         setattr(self, f"clustering_{side}", clustering)
         setattr(self, f"frequencies_{side}", frequencies)
         setattr(self, f"num_clusters_{side}", num_clusters)
-        
+
         return computed_quantities
 
     def compute_log_likelihood(self):
@@ -324,14 +322,14 @@ class BaseESBM(ESBMconfig):
 
         mcmc_frequencies_list_1 = []
         mcmc_frequencies_list_2 = []
-        
+
         llks[0] = ll
         mcmc_draws_1[0] = self.clustering_1.copy()
         mcmc_draws_2[0] = self.clustering_2.copy()
 
         mcmc_frequencies_list_1.append(self.frequencies_1.copy())
         mcmc_frequencies_list_2.append(self.frequencies_2.copy())
-        
+
         check = time.perf_counter()
         for it in range(n_iters):
             out = self.gibbs_step(side=1)
@@ -373,7 +371,7 @@ class BaseESBM(ESBMconfig):
         self.mcmc_draws_2_frequencies = mcmc_frequencies_list_2
 
         return llks, mcmc_draws_1, mcmc_draws_2
-    
+
     def compute_waic(self, burn_in=0, thinning=1):
         """Computes the WAIC for the model.
 
@@ -392,7 +390,7 @@ class BaseESBM(ESBMconfig):
         if self.mcmc_draws_1 is None:
             raise Exception("model must be trained first")
 
-        num_iters = (self.n_iters-burn_in) // thinning + 1
+        num_iters = (self.n_iters - burn_in) // thinning + 1
         llk_array = np.zeros((self.Y.shape[0] * self.Y.shape[1], num_iters))
         for it in range(burn_in, self.n_iters, thinning):
             cl1 = self.mcmc_draws_1[it]
@@ -400,16 +398,16 @@ class BaseESBM(ESBMconfig):
             fr1 = self.mcmc_draws_1_frequencies[it]
             fr2 = self.mcmc_draws_2_frequencies[it]
             mhk = compute_mhk(self.Y, cl1, cl2)
-            llk_array[:, it-1] = self.likelihood.sample_llk_edges(
-                                        Y=self.Y,
-                                        mhk=mhk,
-                                        frequencies_1=fr1,
-                                        frequencies_2=fr2,
-                                        clustering_1=cl1,
-                                        clustering_2=cl2,
-                                        bipartite=self.bipartite,
-                                        rng=self.rng,
-                                    )
+            llk_array[:, it - 1] = self.likelihood.sample_llk_edges(
+                Y=self.Y,
+                mhk=mhk,
+                frequencies_1=fr1,
+                frequencies_2=fr2,
+                clustering_1=cl1,
+                clustering_2=cl2,
+                bipartite=self.bipartite,
+                rng=self.rng,
+            )
 
         waic_value = waic_calculation(llk_array)
 
@@ -575,7 +573,9 @@ class BaseESBM(ESBMconfig):
 
         return est_cluster_1, vi_value_1, est_cluster_2, vi_value_2
 
-    def plot_trace(self, title="Log-likelihood Trace", start=0, save_path=None, figsize=(6, 4)):
+    def plot_trace(
+        self, title="Log-likelihood Trace", start=0, save_path=None, figsize=(6, 4)
+    ):
         """Plot trace of log-likelihood during training.
 
         Parameters
@@ -587,18 +587,17 @@ class BaseESBM(ESBMconfig):
         figsize : tuple, optional
             Figure size for the plot, by default (6, 4)
         """
-        
+
         if self.train_llk is None:
             raise Exception("model must be trained first")
         plot_trace(
-            self.train_llk[start:], 
-            save_path=save_path, 
+            self.train_llk[start:],
+            save_path=save_path,
             figsize=figsize,
             title=title,
             xlabel="Iteration",
-            ylabel="Log-likelihood"
-            )
-
+            ylabel="Log-likelihood",
+        )
 
     def point_predict(self, pairs, rng=None):
         """Predict ratings for user-item pairs.
@@ -617,7 +616,7 @@ class BaseESBM(ESBMconfig):
         """
         if self.estimation_method is None:
             raise Exception("cluster assignments must be estimated before prediction")
-        
+
         mhk = compute_mhk(self.Y, self.clustering_1, self.clustering_2)
         preds = self.likelihood.point_predict(
             mhk=mhk,
@@ -628,15 +627,15 @@ class BaseESBM(ESBMconfig):
             pairs=pairs,
         )
         return preds
-    
+
     def compute_llk_edges(self, iter=None):
         """Compute log-likelihood for edges in the graph.
-        
+
         Parameters
         ----------
         iter : int, optional
             MCMC iteration to use for computation, by default None
-        
+
         Returns
         -------
         llk_edges : np.ndarray
@@ -667,7 +666,7 @@ class BaseESBM(ESBMconfig):
             rng=self.rng,
         )
         return llk_edges
-    
+
     def credible_ball(self, burn_in=0, thinning=1, alpha=0.05):
         """Compute credible ball for cluster assignments.
 
@@ -687,28 +686,24 @@ class BaseESBM(ESBMconfig):
         """
         if self.mcmc_draws_1 is None:
             raise Exception("model must be trained first")
-        
+
         if self.estimation_method != "vi":
-            raise Exception("cluster assignments must be estimated using VI before computing credible ball")
-        
+            raise Exception(
+                "cluster assignments must be estimated using VI before computing credible ball"
+            )
+
         estimated_clusters_1 = self.clustering_1
         estimated_clusters_2 = self.clustering_2
 
         cc_matrix_1 = compute_co_clustering_matrix(self.mcmc_draws_1[burn_in::thinning])
         cc_matrix_2 = compute_co_clustering_matrix(self.mcmc_draws_2[burn_in::thinning])
-        
+
         cb1 = credibleball(
-            c_star=estimated_clusters_1,
-            cls_draw=cc_matrix_1,
-            c_dist="VI", 
-            alpha=alpha
+            c_star=estimated_clusters_1, cls_draw=cc_matrix_1, c_dist="VI", alpha=alpha
         )
 
         cb2 = credibleball(
-            c_star=estimated_clusters_2,
-            cls_draw=cc_matrix_2,
-            c_dist="VI",
-            alpha=alpha
+            c_star=estimated_clusters_2, cls_draw=cc_matrix_2, c_dist="VI", alpha=alpha
         )
 
         return cb1, cb2

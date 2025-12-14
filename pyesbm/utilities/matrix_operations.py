@@ -1,10 +1,11 @@
-"""
-Auxiliary matrix operations for pyesbm.
-"""
+##########################################
+# Auxiliary matrix operations for pyesbm.
+########################################
 
 import numpy as np
 from scipy import sparse
 import numba as nb
+
 
 def compute_mhk(Y, clustering_1, clustering_2):
     """Computes the MHK matrix using (fast) sparse matrix multiplication.
@@ -69,6 +70,7 @@ def compute_y_values(Y, clustering, num_nodes, num_clusters):
     )
     y_values = Y.T @ clusters
     return y_values
+
 
 @nb.jit(nopython=True, parallel=False)
 def compute_co_clustering_matrix(mcmc_draws_users):

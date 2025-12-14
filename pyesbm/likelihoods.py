@@ -12,9 +12,8 @@ from pyesbm.utilities.numba_functions import compute_llk_bernoulli
 
 
 class BaseLikelihood:
-    def __init__(self, epsilon=1e-10, degree_correction=0):
+    def __init__(self, epsilon=1e-10):
         self.epsilon = epsilon
-        self.degree_correction = degree_correction
 
         self._type_check()
 
@@ -28,15 +27,10 @@ class BaseLikelihood:
         if not isinstance(self.epsilon, float):
             raise TypeError(f"epsilon must be float. You provided {type(self.epsilon)}")
 
-        if not isinstance(self.degree_correction, int):
-            raise TypeError(
-                f"degree_correction must be int. You provided {type(self.degree_correction)}"
-            )
-
 
 class PlaceholderLikelihood(BaseLikelihood):
-    def __init__(self, bipartite=False, eps=1e-10, degree_correction=0, **kwargs):
-        super().__init__(bipartite, eps, degree_correction)
+    def __init__(self, bipartite=False, eps=1e-10, **kwargs):
+        super().__init__(bipartite, eps)
 
         self.needs_mhk = False
         self.needs_yvalues = False
@@ -84,15 +78,6 @@ class BetaBernoulli(BaseLikelihood):
             nk=frequencies_other_side,
             eps=self.epsilon,
             mhk=mhk,
-            clustering_1=clustering,
-            clustering_2=clustering_other_side,
-            degree_corrected=False,
-            degree_param_users=1,
-            degree_param_items=1,
-            dg_u=np.array([1]),
-            dg_i=np.array([1]),
-            dg_cl_u=np.array([1]),
-            dg_cl_i=np.array([1]),
         )
         return llk
 
@@ -118,17 +103,13 @@ class BetaBernoulli(BaseLikelihood):
             frequencies_secondary=frequencies_other_side_minus,
             max_clusters=num_clusters,
             side=side,
-            degree_corrected=False,
-            degree_param=1,
-            degree_cluster_minus=np.array([1]),
-            degree_node=1,
             epsilon=self.epsilon,
             a=self.alpha,
             b=self.beta,
         )
 
         return out
-    
+
     def _estimate_theta(self, mhk, frequencies_1, frequencies_2):
         """Estimate the model parameters (theta) based on the current state.
         Using the posterior mean of the Beta distribution.
@@ -152,15 +133,16 @@ class BetaBernoulli(BaseLikelihood):
 
         return theta
 
-    def point_predict(self, 
-                      pairs,
-                      mhk,
-                      frequencies_1, 
-                      frequencies_2,  
-                      clustering_1, 
-                      clustering_2, 
-                      rng=None,
-                      ):
+    def point_predict(
+        self,
+        pairs,
+        mhk,
+        frequencies_1,
+        frequencies_2,
+        clustering_1,
+        clustering_2,
+        rng=None,
+    ):
         """Generate point predictions for the given pairs.
 
         Parameters
@@ -204,16 +186,18 @@ class BetaBernoulli(BaseLikelihood):
             preds.append(theta[c_u, c_i])
 
         return np.array(preds)
-    
-    def sample_llk_edges(self, 
-                   Y, 
-                   mhk,
-                   frequencies_1,
-                   frequencies_2,
-                   clustering_1,
-                   clustering_2,
-                   bipartite=False,
-                   rng=None,):
+
+    def sample_llk_edges(
+        self,
+        Y,
+        mhk,
+        frequencies_1,
+        frequencies_2,
+        clustering_1,
+        clustering_2,
+        bipartite=False,
+        rng=None,
+    ):
         """Compute log-likelihoods of edges based on sampled theta values.
 
         Returns
@@ -221,32 +205,32 @@ class BetaBernoulli(BaseLikelihood):
         np.ndarray
             Log-likelihoods for the edges.
         """
-        
+
         if rng is None:
             rng = np.random.default_rng()
-        
+
         # sample theta from posterior Beta
         a_n = self.alpha + mhk
         b_bar_n = self.beta + np.outer(frequencies_1, frequencies_2)
         theta = rng.beta(a_n, b_bar_n)
-        
+
         if bipartite is False:
             # symmetrize theta
             theta = theta + theta.T
             theta = theta / 2
-                
-        clustering_1_onehot = np.eye(np.max(clustering_1)+1)[clustering_1]
-        clustering_2_onehot = np.eye(np.max(clustering_2)+1)[clustering_2]
+
+        clustering_1_onehot = np.eye(np.max(clustering_1) + 1)[clustering_1]
+        clustering_2_onehot = np.eye(np.max(clustering_2) + 1)[clustering_2]
 
         edge_prob = clustering_1_onehot @ theta @ clustering_2_onehot.T
 
         y_flat = Y.flatten()
         p_flat = edge_prob.flatten()
-        
+
         out = y_flat * np.log(p_flat) + (1 - y_flat) * np.log(1 - p_flat)
 
-        return out        
-    
+        return out
+
 
 class PoissonGamma(BaseLikelihood):
     def __init__(self, shape=1.0, rate=1.0, **kwargs):
@@ -282,15 +266,6 @@ class PoissonGamma(BaseLikelihood):
             nk=frequencies_other_side,
             eps=self.epsilon,
             mhk=mhk,
-            clustering_1=clustering,
-            clustering_2=clustering_other_side,
-            degree_corrected=False,
-            degree_param_users=1,
-            degree_param_items=1,
-            dg_u=np.array([1]),
-            dg_i=np.array([1]),
-            dg_cl_u=np.array([1]),
-            dg_cl_i=np.array([1]),
         )
         return llk
 
@@ -318,17 +293,12 @@ class PoissonGamma(BaseLikelihood):
             epsilon=self.epsilon,
             a=self.shape,
             b=self.rate,
-            bipartite=bipartite,
             max_clusters=num_clusters,
             side=side,
-            degree_corrected=False,
-            degree_param=1,
-            degree_cluster_minus=np.array([1]),
-            degree_node=1,
         )
 
         return out
-    
+
     def _estimate_theta(self, mhk, frequencies_1, frequencies_2):
         """
         Estimate the model parameters (theta) based on the current state.
@@ -347,21 +317,22 @@ class PoissonGamma(BaseLikelihood):
         np.ndarray
             Estimated parameters (theta).
         """
-        
+
         outer = np.outer(frequencies_1, frequencies_2)
         theta = (self.shape + mhk) / (self.rate + outer)
 
         return theta
-    
-    def point_predict(self, 
-                      pairs,
-                      mhk,
-                      frequencies_1, 
-                      frequencies_2,  
-                      clustering_1, 
-                      clustering_2, 
-                      rng=None,
-                      ):
+
+    def point_predict(
+        self,
+        pairs,
+        mhk,
+        frequencies_1,
+        frequencies_2,
+        clustering_1,
+        clustering_2,
+        rng=None,
+    ):
         """Generate point predictions for the given pairs.
 
         Parameters
@@ -405,16 +376,18 @@ class PoissonGamma(BaseLikelihood):
             preds.append(theta[c_u, c_i])
 
         return np.array(preds)
-    
-    def sample_llk_edges(self, 
-                   Y, 
-                   mhk,
-                   frequencies_1,
-                   frequencies_2,
-                   clustering_1,
-                   clustering_2,
-                   bipartite=False,
-                   rng=None,):
+
+    def sample_llk_edges(
+        self,
+        Y,
+        mhk,
+        frequencies_1,
+        frequencies_2,
+        clustering_1,
+        clustering_2,
+        bipartite=False,
+        rng=None,
+    ):
         """Compute log-likelihoods of edges based on sampled theta values.
 
         Returns
@@ -422,33 +395,32 @@ class PoissonGamma(BaseLikelihood):
         np.ndarray
             Log-likelihoods for the edges.
         """
-        
+
         if rng is None:
             rng = np.random.default_rng()
-        
+
         # sample theta from posterior Gamma
         a_n = self.shape + mhk
         b_n = self.rate + np.outer(frequencies_1, frequencies_2)
-        theta = rng.gamma(a_n, 1/b_n) # numpy uses shape, scale=1/rate
-        
+        theta = rng.gamma(a_n, 1 / b_n)  # numpy uses shape, scale=1/rate
+
         if bipartite is False:
             # symmetrize theta
             theta = theta + theta.T
             theta = theta / 2
-                
-        clustering_1_onehot = np.eye(np.max(clustering_1)+1)[clustering_1]
-        clustering_2_onehot = np.eye(np.max(clustering_2)+1)[clustering_2]
+
+        clustering_1_onehot = np.eye(np.max(clustering_1) + 1)[clustering_1]
+        clustering_2_onehot = np.eye(np.max(clustering_2) + 1)[clustering_2]
 
         edge_rate = clustering_1_onehot @ theta @ clustering_2_onehot.T
 
         y_flat = Y.flatten()
         r_flat = edge_rate.flatten()
-        
-        out = y_flat * np.log(r_flat) - r_flat - np.log(
-            np.array([factorial(int(y)) for y in y_flat])
+
+        out = (
+            y_flat * np.log(r_flat)
+            - r_flat
+            - np.log(np.array([factorial(int(y)) for y in y_flat]))
         )
 
         return out
-
-    
-    

@@ -50,6 +50,7 @@ class CategoricalCovariate(BaseCovariate):
     def compute_logits(
         self, num_components, node_idx, frequencies_minus, nch_minus, **kwargs
     ):
+        """Compute logits for categorical covariate."""
         logits = compute_logits_categorical(
             num_components=num_components,
             idx=node_idx,
@@ -103,6 +104,29 @@ class CountCovariate(BaseCovariate):
         nch_minus,
         **kwargs,
     ):
+        """Compute logits for count covariate.
+
+        Parameters
+        ----------
+        num_components : int
+            The number of components (clusters).
+        node_idx : int
+            The index of the current node.
+        frequencies : np.ndarray
+            The frequencies of each covariate level.
+        frequencies_minus : np.ndarray
+            The frequencies of each covariate level minus the current node.
+        nch : np.ndarray
+            The count of observations in each cluster for each covariate.
+        nch_minus : np.ndarray
+            The count of observations in each cluster for each covariate minus the current node.
+
+        Returns
+        -------
+        np.ndarray
+            The computed logits for the count covariate.
+        """
+
         logits = compute_logits_count(
             num_components=num_components,
             idx=node_idx,
@@ -124,6 +148,7 @@ class CovariateModel:
         self.nch = None
 
     def get_nch(self, clustering=None, num_clusters=None):
+        """Get or compute the nch matrix."""
         if self.nch is None:
             if clustering is None or num_clusters is None:
                 raise ValueError(
@@ -137,6 +162,7 @@ class CovariateModel:
         return self.nch
 
     def add_cluster(self, idx):
+        """Add a new cluster and update nch matrix."""
         nch = self.get_nch()
         for cov in range(len(self.covariates)):
             cov_values = self.covariates[cov].cov_values
@@ -151,6 +177,7 @@ class CovariateModel:
         return nch
 
     def update_nch(self, idx, new_cluster):
+        """Update nch matrix when moving a node to a new cluster."""
         nch = self.get_nch()
         for cov in range(len(self.covariates)):
             cov_values = self.covariates[cov].cov_values

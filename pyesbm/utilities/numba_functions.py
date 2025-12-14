@@ -8,13 +8,15 @@ from math import lgamma
 import numpy as np
 
 import os
+
 # warning raised within numba, silence it globally
-os.environ['KMP_WARNINGS'] = '0'
+os.environ["KMP_WARNINGS"] = "0"
+
 
 ###########################################
 # log-likelihood computation functions
 ##############################################
-# @nb.jit(nopython=True, fastmath=True)
+@nb.jit(nopython=True, fastmath=True)
 def compute_llk_poisson(
     a,
     b,
@@ -22,20 +24,11 @@ def compute_llk_poisson(
     nk,
     eps,
     mhk,
-    clustering_1,
-    clustering_2,
-    dg_u,
-    dg_i,
-    dg_cl_u,
-    dg_cl_i,
-    degree_param_users=0.5,
-    degree_param_items=0.5,
-    degree_corrected=False,
 ):
     """Function to compute log-likelihood of current clustering
 
     To understand the parameters, see the detailed descriptions in
-    results/text/lorenzocosta_thesis.pdf.
+    examples/lorenzocosta_thesis.pdf.
 
     Parameters
     ----------
@@ -44,31 +37,13 @@ def compute_llk_poisson(
     b : float
         Rate parameter for gamma prior
     nh : array-like
-        User cluster sizes
+        cluster sizes side 1
     nk : array-like
-        Item cluster sizes
+        cluster sizes side 2
     eps : float
         Small value to avoid division by zero
     mhk : array-like
         mhk matrix
-    user_clustering : array-like
-        User clustering assignments
-    item_clustering : array-like
-        Item clustering assignments
-    dg_u : array-like
-        User degree sequence
-    dg_i : array-like
-        Item degree sequence
-    dg_cl_u : array-like
-        Sum of user degrees for users within each cluster
-    dg_cl_i : array-like
-        Sum of item degrees for items within each cluster
-    degree_param_users : float, optional
-        Degree-correction parameter for users, by default 0.5
-    degree_param_items : float, optional
-        Degree-correction parameter for items, by default 0.5
-    degree_corrected : bool, optional
-        Whether to apply degree correction, by default False
 
     Returns
     -------
@@ -77,24 +52,6 @@ def compute_llk_poisson(
     """
 
     out = 0.0
-    if degree_corrected is True:
-        for h in range(len(nh)):
-            idx = np.where(clustering_1 == h)[0]
-            for i in idx:
-                out += lgamma(degree_param_users + dg_u[i] + eps)
-            out -= lgamma(nh[h] * degree_param_users + dg_cl_u[h] + eps)
-            out += dg_cl_u[h] * np.log(nh[h])
-            out += lgamma(nh[h] * degree_param_users)
-            out -= nh[h] * lgamma(degree_param_users)
-
-        for k in range(len(nk)):
-            idx = np.where(clustering_2 == k)[0]
-            for i in idx:
-                out += lgamma(degree_param_items + dg_i[i] + eps)
-            out -= lgamma(nk[k] * degree_param_items + dg_cl_i[k] + eps)
-            out += dg_cl_i[k] * np.log(nk[k])
-            out += lgamma(nk[k] * degree_param_items)
-            out -= nk[k] * lgamma(degree_param_items)
 
     for h in range(len(nh)):
         for k in range(len(nk)):
@@ -104,7 +61,8 @@ def compute_llk_poisson(
 
     return out
 
-# @nb.jit(nopython=True, fastmath=True)
+
+@nb.jit(nopython=True, fastmath=True)
 def compute_llk_bernoulli(
     a,
     b,
@@ -112,36 +70,30 @@ def compute_llk_bernoulli(
     nk,
     eps,
     mhk,
-    clustering_1,
-    clustering_2,
-    dg_u,
-    dg_i,
-    dg_cl_u,
-    dg_cl_i,
-    degree_param_users=0.5,
-    degree_param_items=0.5,
-    degree_corrected=False,
 ):
-    """Function to compute log-likelihood of current clustering for Bernoulli likelihood"""
-    out = 0.0
-    if degree_corrected is True:
-        for h in range(len(nh)):
-            idx = np.where(clustering_1 == h)[0]
-            for i in idx:
-                out += lgamma(degree_param_users + dg_u[i] + eps)
-            out -= lgamma(nh[h] * degree_param_users + dg_cl_u[h] + eps)
-            out += dg_cl_u[h] * np.log(nh[h])
-            out += lgamma(nh[h] * degree_param_users)
-            out -= nh[h] * lgamma(degree_param_users)
+    """Compute log-likelihood of current clustering for Bernoulli likelihood.
 
-        for k in range(len(nk)):
-            idx = np.where(clustering_2 == k)[0]
-            for i in idx:
-                out += lgamma(degree_param_items + dg_i[i] + eps)
-            out -= lgamma(nk[k] * degree_param_items + dg_cl_i[k] + eps)
-            out += dg_cl_i[k] * np.log(nk[k])
-            out += lgamma(nk[k] * degree_param_items)
-            out -= nk[k] * lgamma(degree_param_items)
+    Parameters
+    ----------
+    a : float
+        Shape parameter for beta prior
+    b : float
+        Rate parameter for beta prior
+    nh : array-like
+        cluster sizes side 1
+    nk : array-like
+        cluster sizes side 2
+    eps : float
+        Small value to avoid division by zero
+    mhk : array-like
+        MHK matrix
+
+    Returns
+    -------
+    out : float
+        log-likelihood value
+    """
+    out = 0.0
 
     for h in range(len(nh)):
         for k in range(len(nk)):
@@ -157,7 +109,7 @@ def compute_llk_bernoulli(
 ###################################
 # gibbs-type prior functions
 ####################################
-# @nb.jit(nopython=True, fastmath=True)
+@nb.jit(nopython=True, fastmath=True)
 def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, gamma):
     """Probability of sampling each cluster (and a new one) under Gibbs-type priors.
 
@@ -217,40 +169,43 @@ def sampling_scheme(V, H, frequencies, bar_h, scheme_type, scheme_param, sigma, 
 
     return probs
 
-# @nb.jit(nopython=True, fastmath=True)
+
+@nb.jit(nopython=True, fastmath=True)
 def probs_gnedin(V, h_vals, gamma=0.5):
     """Probability of having h clusters under Gnedin Process prior."""
 
     n = len(h_vals)
     result = np.empty(n, dtype=np.float64)
-    
+
     # pre-compute constants invariant to the loop
     lgamma_V_plus_1 = lgamma(V + 1)
     lgamma_1_minus_gamma = lgamma(1.0 - gamma)
     lgamma_V_plus_gamma = lgamma(V + gamma)
     log_gamma = np.log(gamma)
-    
+
     for i in range(n):
         val_h = h_vals[i]
 
         l_choose = lgamma_V_plus_1 - lgamma(val_h + 1) - lgamma(V - val_h + 1)
-        
-        log_res = (l_choose + 
-                   lgamma(val_h - gamma) - 
-                   lgamma_1_minus_gamma + 
-                   log_gamma + 
-                   lgamma(V + gamma - val_h) - 
-                   lgamma_V_plus_gamma)
-        
+
+        log_res = (
+            l_choose
+            + lgamma(val_h - gamma)
+            - lgamma_1_minus_gamma
+            + log_gamma
+            + lgamma(V + gamma - val_h)
+            - lgamma_V_plus_gamma
+        )
+
         result[i] = np.exp(log_res)
-        
+
     return result
 
 
 #################################
 # log probability computation for gibbs sampling steps
 #################################
-# @nb.njit(fastmath=True, parallel=False)
+@nb.njit(fastmath=True, parallel=False)
 def update_prob_poissongamma(
     num_components,
     mhk,
@@ -262,12 +217,37 @@ def update_prob_poissongamma(
     b,
     max_clusters,
     side,
-    bipartite,
-    degree_corrected,
-    degree_cluster_minus,
-    degree_node,
-    degree_param,
 ):
+    """Update log probabilities for Poisson-Gamma model.
+
+    Parameters
+    ----------
+    num_components : int
+        Number of components (clusters)
+    mhk : array-like
+        Co-occurrence matrix
+    frequencies_primary : array-like
+        Frequencies of primary items
+    frequencies_secondary : array-like
+        Frequencies of secondary items
+    y_values : array-like
+        Y values
+    epsilon : float
+        Epsilon value to avoid numerical issues
+    a : float
+        Hyperparameter for the Poisson-Gamma model
+    b : float
+        Hyperparameter for the Poisson-Gamma model
+    max_clusters : int
+        Maximum number of clusters
+    side : int
+        Side indicator (1 or 2)
+
+    Returns
+    -------
+    log_probs : array-like
+        Updated log probabilities
+    """
     log_probs = np.zeros(num_components)
     a_plus_epsilon = a + epsilon
     lgamma_a = lgamma(a)
@@ -303,26 +283,6 @@ def update_prob_poissongamma(
 
         log_probs[i] += p_i
 
-        if degree_corrected is True:
-            first = lgamma(
-                frequencies_primary[i] * degree_param + degree_cluster_minus[i]
-            )
-            second = lgamma(
-                (frequencies_primary[i] + 1) * degree_param
-                + degree_cluster_minus[i]
-                + degree_node
-            )
-
-            third = lgamma((frequencies_primary[i] + 1) * degree_param)
-            fourth = lgamma(frequencies_primary[i] * degree_param)
-
-            fifth = (degree_cluster_minus[i] + degree_node) * np.log(
-                frequencies_primary[i] + 1
-            )
-            sixth = degree_cluster_minus[i] * np.log(frequencies_primary[i])
-
-            log_probs[i] += first - second + third - fourth + fifth - sixth
-
     # Handle new cluster case
     if len(log_probs) > max_clusters:
         p_new = 0.0
@@ -335,15 +295,11 @@ def update_prob_poissongamma(
             )
 
         log_probs[max_clusters] += p_new
-        if degree_corrected is True:
-            log_probs[max_clusters] += lgamma(degree_param) - lgamma(
-                degree_param + degree_node
-            )
 
     return log_probs
 
 
-# @nb.njit(fastmath=True, parallel=False)
+@nb.njit(fastmath=True, parallel=False)
 def update_prob_betabernoulli(
     num_components,
     mhk,
@@ -355,11 +311,49 @@ def update_prob_betabernoulli(
     b,
     max_clusters,
     side,
-    degree_corrected,
-    degree_cluster_minus,
-    degree_node,
-    degree_param,
 ):
+    """Update the log probabilities for the Beta-Bernoulli distribution.
+
+    Parameters
+    ----------
+    num_components : int
+        Number of components in the mixture
+    mhk : array-like
+        Co-occurrence matrix
+    frequencies_primary : array-like
+        Frequencies of primary observations
+    frequencies_secondary : array-like
+        Frequencies of secondary observations
+    y_values : array-like
+        Observed values
+    epsilon : float
+        Small value to avoid numerical issues
+    a : float
+        Hyperparameter for the Poisson-Gamma model
+    mhk : array-like
+        Co-occurrence matrix
+    frequencies_primary : array-like
+        Frequencies of primary observations
+    frequencies_secondary : array-like
+        Frequencies of secondary observations
+    y_values : array-like
+        Observed values
+    epsilon : float
+        Small value to avoid numerical issues
+    a : float
+        Hyperparameter for the Poisson-Gamma model
+    b : float
+        Hyperparameter for the Beta-Bernoulli model
+    max_clusters : int
+        Maximum number of clusters
+    side : int
+        Side indicator (1 or 2)
+
+    Returns
+    -------
+    array-like
+        Log probabilities for each component
+    """
     log_probs = np.zeros(num_components)
 
     for i in range(max_clusters):
@@ -432,7 +426,7 @@ def update_prob_betabernoulli(
 ##########################################
 
 
-# @nb.jit(nopython=True)
+@nb.jit(nopython=True)
 def compute_logits_count(
     num_components, idx, nch, nch_minus, cov_values, nh, nh_minus, a, b
 ):
@@ -491,7 +485,7 @@ def compute_logits_count(
     return log_probs
 
 
-# @nb.jit(nopython=True)
+@nb.jit(nopython=True)
 def compute_logits_categorical(
     num_components,
     idx,
@@ -539,55 +533,53 @@ def compute_logits_categorical(
 
     return log_probs
 
+
 ##########################################
 # waic
 ##########################################
+
+
 @nb.jit(nopython=True)
 def waic_calculation(x):
     """
     Numba-optimized function for WAIC comp
     """
     n_samples, n_iterations = x.shape
-    
-    # Pre-allocate arrays for intermediate calculations
+
     mean_exp_x = np.zeros(n_samples)
     log_mean_exp_x = np.zeros(n_samples)
     mean_x = np.zeros(n_samples)
     var_x = np.zeros(n_samples)
-    
-    # Calculate mean of exponentials for each sample
+
     for i in range(n_samples):
         sum_exp = 0.0
-        a = np.max(x[i,:])
+        a = np.max(x[i, :])
         for j in range(n_iterations):
-            sum_exp += np.exp(x[i, j]-a)
+            sum_exp += np.exp(x[i, j] - a)
         mean_exp_x[i] = sum_exp / n_iterations
         log_mean_exp_x[i] = np.log(mean_exp_x[i])
-    
-    # Calculate mean of x for each sample
+
     for i in range(n_samples):
         sum_x = 0.0
         for j in range(n_iterations):
             sum_x += x[i, j]
         mean_x[i] = sum_x / n_iterations
-    
-    # Calculate variance of x for each sample
+
     for i in range(n_samples):
         sum_squared_diff = 0.0
         for j in range(n_iterations):
             diff = x[i, j] - mean_x[i]
             sum_squared_diff += diff * diff
         var_x[i] = sum_squared_diff / (n_iterations - 1)
-    
-    # Calculate final results
+
     lppd = 0.0
     for i in range(n_samples):
         lppd += log_mean_exp_x[i]
-    
+
     pWAIC2 = 0.0
     for i in range(n_samples):
         pWAIC2 += var_x[i]
-    
+
     WAIC = -2 * lppd + 2 * pWAIC2
-    
+
     return WAIC
