@@ -1,5 +1,5 @@
 [![Project Status: Active …](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/lorenzo-costa/pyesbm/HEAD)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/lorenzo-costa/pyesbm/temp)
 
 # pyesbm
 
