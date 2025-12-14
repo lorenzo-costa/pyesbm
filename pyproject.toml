@@ -1,1 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
+[project]
+name = "pyesbm"
+version = "0.1.0"
+description = "Bayesian inference for Extended Stochastic Block Models"
+authors = [
+    { name = "Lorenzo Costa", email = "lrcosta@umich.edu" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+    "numpy",
+    "scipy",
+    "numba",
+    "matplotlib",
+    "seaborn",
+]
+
+[project.optional-dependencies]
+notebooks = [
+    "jupyterlab",
+    "ipykernel",
+]
+
+[tool.setuptools]
+packages = ["pyesbm"]

@@ -1,6 +1,2 @@
-numpy
-numba
-scipy
-ipykernel
-matplotlib
-seaborn
+-e .
+.[notebooks]

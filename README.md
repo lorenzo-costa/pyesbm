@@ -41,8 +41,7 @@ jupyter lab
 ```
 Then open any notebook in the `examples/ directory`.
 
-### Repository structure
-## 📂 Repository Structure
+## Repository Structure
 
 ```text
 ├── pyesbm/            # package
