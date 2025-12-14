@@ -28,4 +28,4 @@ notebooks = [
 ]
 
 [tool.setuptools]
-packages = ["pyesbm"]
+packages = ["src"]
