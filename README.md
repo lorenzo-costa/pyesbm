@@ -28,7 +28,7 @@ pip install -e .
 
 To run the example notebooks, install the optional notebook dependencies:
 ```bash
-pip install -e .[notebooks]
+pip install -e ".[notebooks]"
 ```
 
 ## Running the example notebooks
