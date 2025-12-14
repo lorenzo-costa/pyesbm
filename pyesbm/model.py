@@ -394,14 +394,13 @@ class BaseESBM(ESBMconfig):
 
         num_iters = (self.n_iters-burn_in) // thinning + 1
         llk_array = np.zeros((self.Y.shape[0] * self.Y.shape[1], num_iters))
-        
-        for it in range(burn_in, self.n_iters + 1, thinning):
+        for it in range(burn_in, self.n_iters, thinning):
             cl1 = self.mcmc_draws_1[it]
             cl2 = self.mcmc_draws_2[it]
             fr1 = self.mcmc_draws_1_frequencies[it]
             fr2 = self.mcmc_draws_2_frequencies[it]
             mhk = compute_mhk(self.Y, cl1, cl2)
-            llk_array[:, it] = self.likelihood.sample_llk_edges(
+            llk_array[:, it-1] = self.likelihood.sample_llk_edges(
                                         Y=self.Y,
                                         mhk=mhk,
                                         frequencies_1=fr1,
@@ -576,7 +575,7 @@ class BaseESBM(ESBMconfig):
 
         return est_cluster_1, vi_value_1, est_cluster_2, vi_value_2
 
-    def plot_trace(self, start=0, save_path=None, figsize=(6, 4)):
+    def plot_trace(self, title="Log-likelihood Trace", start=0, save_path=None, figsize=(6, 4)):
         """Plot trace of log-likelihood during training.
 
         Parameters
@@ -595,7 +594,7 @@ class BaseESBM(ESBMconfig):
             self.train_llk[start:], 
             save_path=save_path, 
             figsize=figsize,
-            title="Log-likelihood Trace",
+            title=title,
             xlabel="Iteration",
             ylabel="Log-likelihood"
             )
