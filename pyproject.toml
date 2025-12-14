@@ -19,10 +19,6 @@ dependencies = [
     "numba",
     "matplotlib",
     "seaborn",
-]
-
-[project.optional-dependencies]
-notebooks = [
     "jupyterlab",
     "ipykernel",
 ]
