@@ -24,4 +24,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["pyesbm"]
+packages = ["."]
