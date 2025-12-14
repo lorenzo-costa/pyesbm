@@ -4,7 +4,7 @@
 
 Python code for modeling and inference using [Extended Stochastic Block Models](https://doi.org/10.1214/21-AOAS1595). See the [examples](pyesbm/examples/) for user-friendly illustration.
  
-### Key features 
+## Key features 
 
 * Estimation and inference for uni-partite and bi-partite graph using Bayesian Non-parametric Stochastic Block-Models
 
@@ -34,19 +34,7 @@ pip install -e ".[notebooks]"
 ## Running the example notebooks
 
 After installation:
-
 ```bash
 jupyter lab
 ```
 Then open any notebook in the `examples/ directory`.
-
-## Repository Structure
-
-```text
-├── pyesbm/            # package
-│   ├── utilities/        
-├── examples/           # notebook examples
-├── tests/              # Unit and integration tests
-└── README.md           # this file :)
-```
----
