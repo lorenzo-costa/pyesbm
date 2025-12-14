@@ -1,4 +1,5 @@
 [![Project Status: Active …](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/lorenzo-costa/pyesbm/HEAD)
 
 # pyesbm
 
@@ -14,13 +15,40 @@ Python code for modeling and inference using [Extended Stochastic Block Models](
 
 * Flexible framework that allows users to specify their own model for edges, prior on the clustering partition or covariate types.
 
-### Installation
-Create a new virtual environment in the parent directory of `pyesbm`
+## Installation
+
+Clone the repository and install the package in editable mode:
+
 ```bash
-python -m venv ../pyesbmenv
-source ../pyesbmenv/bin/activate
-```
-Build the package
-```bash
+git clone https://github.com/lorenzo-costa/pyesbm.git
+cd pyesbm
+python -m venv .venv
+source .venv/bin/activate
 pip install -e .
 ```
+
+To run the example notebooks, install the optional notebook dependencies:
+```bash
+pip install -e .[notebooks]
+```
+
+## Running the example notebooks
+
+After installation:
+
+```bash
+jupyter lab
+```
+Then open any notebook in the `examples/ directory`.
+
+### Repository structure
+## 📂 Repository Structure
+
+```text
+├── pyesbm/            # package
+│   ├── utilities/        
+├── examples/           # notebook examples
+├── tests/              # Unit and integration tests
+└── README.md           # this file :)
+```
+---
