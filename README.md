@@ -1,5 +1,4 @@
 [![Project Status: Active …](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/lorenzo-costa/pyesbm/HEAD)
 
 # pyesbm
 
@@ -22,8 +21,8 @@ Clone the repository and install the package in editable mode:
 ```bash
 git clone https://github.com/lorenzo-costa/pyesbm.git
 cd pyesbm
-python -m venv .venv
-source .venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 pip install -e .
 ```
 
