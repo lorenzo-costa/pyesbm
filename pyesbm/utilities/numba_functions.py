@@ -538,3 +538,56 @@ def compute_logits_categorical(
     log_probs[-1] += np.log(alpha_c[c]) - np.log(alpha_0)
 
     return log_probs
+
+##########################################
+# waic
+##########################################
+@nb.jit(nopython=True)
+def waic_calculation(x):
+    """
+    Numba-optimized function for WAIC comp
+    """
+    n_samples, n_iterations = x.shape
+    
+    # Pre-allocate arrays for intermediate calculations
+    mean_exp_x = np.zeros(n_samples)
+    log_mean_exp_x = np.zeros(n_samples)
+    mean_x = np.zeros(n_samples)
+    var_x = np.zeros(n_samples)
+    
+    # Calculate mean of exponentials for each sample
+    for i in range(n_samples):
+        sum_exp = 0.0
+        a = np.max(x[i,:])
+        for j in range(n_iterations):
+            sum_exp += np.exp(x[i, j]-a)
+        mean_exp_x[i] = sum_exp / n_iterations
+        log_mean_exp_x[i] = np.log(mean_exp_x[i])
+    
+    # Calculate mean of x for each sample
+    for i in range(n_samples):
+        sum_x = 0.0
+        for j in range(n_iterations):
+            sum_x += x[i, j]
+        mean_x[i] = sum_x / n_iterations
+    
+    # Calculate variance of x for each sample
+    for i in range(n_samples):
+        sum_squared_diff = 0.0
+        for j in range(n_iterations):
+            diff = x[i, j] - mean_x[i]
+            sum_squared_diff += diff * diff
+        var_x[i] = sum_squared_diff / (n_iterations - 1)
+    
+    # Calculate final results
+    lppd = 0.0
+    for i in range(n_samples):
+        lppd += log_mean_exp_x[i]
+    
+    pWAIC2 = 0.0
+    for i in range(n_samples):
+        pWAIC2 += var_x[i]
+    
+    WAIC = -2 * lppd + 2 * pWAIC2
+    
+    return WAIC

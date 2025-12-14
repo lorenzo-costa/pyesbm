@@ -3,6 +3,7 @@ likelihoods classes
 """
 
 import numpy as np
+from math import factorial
 
 from pyesbm.utilities.numba_functions import update_prob_poissongamma
 from pyesbm.utilities.numba_functions import update_prob_betabernoulli
@@ -127,7 +128,125 @@ class BetaBernoulli(BaseLikelihood):
         )
 
         return out
+    
+    def _estimate_theta(self, mhk, frequencies_1, frequencies_2):
+        """Estimate the model parameters (theta) based on the current state.
+        Using the posterior mean of the Beta distribution.
 
+        Parameters
+        ----------
+        mhk : np.ndarray
+            Matrix of co-cluster assignments.
+        frequencies_1 : np.ndarray
+            Frequencies for the first dimension.
+        frequencies_2 : np.ndarray
+            Frequencies for the second dimension.
+
+        Returns
+        -------
+        np.ndarray
+            Estimated parameters (theta).
+        """
+        outer = np.outer(frequencies_1, frequencies_2)
+        theta = (self.alpha + mhk) / (self.alpha + self.beta + outer)
+
+        return theta
+
+    def point_predict(self, 
+                      pairs,
+                      mhk,
+                      frequencies_1, 
+                      frequencies_2,  
+                      clustering_1, 
+                      clustering_2, 
+                      rng=None,
+                      ):
+        """Generate point predictions for the given pairs.
+
+        Parameters
+        ----------
+        pairs : _type_
+            _description_
+        rng : _type_, optional
+            _description_, by default None
+        """
+
+        n1 = len(clustering_1)
+        n2 = len(clustering_2)
+
+        if not isinstance(pairs, list):
+            raise TypeError("pairs must be a list")
+
+        for p in pairs:
+            if not isinstance(p, (tuple, list, np.ndarray)) or len(p) != 2:
+                raise ValueError("Each pair must be a list, tuple or array of length 2")
+            u, i = p
+            if not isinstance(u, int) or not isinstance(i, int):
+                raise TypeError("Each element in the pair must be an integer")
+            if u < 0 or u >= n1:
+                raise ValueError(f"Node index {u} out of bounds for first dimension")
+            if i < 0 or i >= n2:
+                raise ValueError(f"Node index {i} out of bounds for second dimension")
+
+        if rng is None:
+            rng = np.random.default_rng()
+
+        preds = []
+        theta = self._estimate_theta(
+            mhk=mhk,
+            frequencies_1=frequencies_1,
+            frequencies_2=frequencies_2,
+        )
+        for p in pairs:
+            u, i = p
+            c_u = clustering_1[u]
+            c_i = clustering_2[i] if clustering_2 is not None else clustering_1[i]
+            preds.append(theta[c_u, c_i])
+
+        return np.array(preds)
+    
+    def sample_llk_edges(self, 
+                   Y, 
+                   mhk,
+                   frequencies_1,
+                   frequencies_2,
+                   clustering_1,
+                   clustering_2,
+                   bipartite=False,
+                   rng=None,):
+        """Compute log-likelihoods of edges based on sampled theta values.
+
+        Returns
+        -------
+        np.ndarray
+            Log-likelihoods for the edges.
+        """
+        
+        if rng is None:
+            rng = np.random.default_rng()
+        
+        # sample theta from posterior Beta
+        a_n = self.alpha + mhk
+        b_bar_n = self.beta + np.outer(frequencies_1, frequencies_2)
+        theta = rng.beta(a_n, b_bar_n)
+        
+        if bipartite is False:
+            # symmetrize theta
+            theta = theta + theta.T
+            theta = theta / 2
+                
+        clustering_1_onehot = np.eye(np.max(clustering_1)+1)[clustering_1]
+        clustering_2_onehot = np.eye(np.max(clustering_2)+1)[clustering_2]
+
+        edge_prob = clustering_1_onehot @ theta @ clustering_2_onehot.T
+
+        y_flat = Y.flatten()
+        p_flat = edge_prob.flatten()
+        
+        out = y_flat * np.log(p_flat) + (1 - y_flat) * np.log(1 - p_flat)
+
+        return out        
+    
 
 class PoissonGamma(BaseLikelihood):
     def __init__(self, shape=1.0, rate=1.0, **kwargs):
@@ -209,3 +328,127 @@ class PoissonGamma(BaseLikelihood):
         )
 
         return out
+    
+    def _estimate_theta(self, mhk, frequencies_1, frequencies_2):
+        """
+        Estimate the model parameters (theta) based on the current state.
+
+        Parameters
+        ----------
+        mhk : np.ndarray
+            Matrix of co-cluster assignments.
+        frequencies_1 : np.ndarray
+            Frequencies for the first dimension.
+        frequencies_2 : np.ndarray
+            Frequencies for the second dimension.
+
+        Returns
+        -------
+        np.ndarray
+            Estimated parameters (theta).
+        """
+        
+        outer = np.outer(frequencies_1, frequencies_2)
+        theta = (self.shape + mhk) / (self.rate + outer)
+
+        return theta
+    
+    def point_predict(self, 
+                      pairs,
+                      mhk,
+                      frequencies_1, 
+                      frequencies_2,  
+                      clustering_1, 
+                      clustering_2, 
+                      rng=None,
+                      ):
+        """Generate point predictions for the given pairs.
+
+        Parameters
+        ----------
+        pairs : _type_
+            _description_
+        rng : _type_, optional
+            _description_, by default None
+        """
+
+        n1 = len(clustering_1)
+        n2 = len(clustering_2)
+
+        if not isinstance(pairs, list):
+            raise TypeError("pairs must be a list")
+
+        for p in pairs:
+            if not isinstance(p, (tuple, list, np.ndarray)) or len(p) != 2:
+                raise ValueError("Each pair must be a list, tuple or array of length 2")
+            u, i = p
+            if not isinstance(u, int) or not isinstance(i, int):
+                raise TypeError("Each element in the pair must be an integer")
+            if u < 0 or u >= n1:
+                raise ValueError(f"Node index {u} out of bounds for first dimension")
+            if i < 0 or i >= n2:
+                raise ValueError(f"Node index {i} out of bounds for second dimension")
+
+        if rng is None:
+            rng = np.random.default_rng()
+
+        preds = []
+        theta = self._estimate_theta(
+            mhk=mhk,
+            frequencies_1=frequencies_1,
+            frequencies_2=frequencies_2,
+        )
+        for p in pairs:
+            u, i = p
+            c_u = clustering_1[u]
+            c_i = clustering_2[i] if clustering_2 is not None else clustering_1[i]
+            preds.append(theta[c_u, c_i])
+
+        return np.array(preds)
+    
+    def sample_llk_edges(self, 
+                   Y, 
+                   mhk,
+                   frequencies_1,
+                   frequencies_2,
+                   clustering_1,
+                   clustering_2,
+                   bipartite=False,
+                   rng=None,):
+        """Compute log-likelihoods of edges based on sampled theta values.
+
+        Returns
+        -------
+        np.ndarray
+            Log-likelihoods for the edges.
+        """
+        
+        if rng is None:
+            rng = np.random.default_rng()
+        
+        # sample theta from posterior Gamma
+        a_n = self.shape + mhk
+        b_n = self.rate + np.outer(frequencies_1, frequencies_2)
+        theta = rng.gamma(a_n, 1/b_n) # numpy uses shape, scale=1/rate
+        
+        if bipartite is False:
+            # symmetrize theta
+            theta = theta + theta.T
+            theta = theta / 2
+                
+        clustering_1_onehot = np.eye(np.max(clustering_1)+1)[clustering_1]
+        clustering_2_onehot = np.eye(np.max(clustering_2)+1)[clustering_2]
+
+        edge_rate = clustering_1_onehot @ theta @ clustering_2_onehot.T
+
+        y_flat = Y.flatten()
+        r_flat = edge_rate.flatten()
+        
+        out = y_flat * np.log(r_flat) - r_flat - np.log(
+            np.array([factorial(int(y)) for y in y_flat])
+        )
+
+        return out
+
+    
+    

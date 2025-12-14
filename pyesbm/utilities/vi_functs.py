@@ -200,3 +200,132 @@ def minVI(psm, cls_draw=None, method="avg", max_k=None):
         }
 
     return {"error": "Method not fully implemented yet"}
+
+def credibleball(c_star, cls_draw, c_dist="VI", alpha=0.05):
+    """
+    Computes the Credible Ball for Bayesian clustering.
+    
+    Parameters
+    ----------
+    c_star : np.array
+        Optimal clustering vector (length N).
+    cls_draw : np.array
+        Posterior samples of clusterings (M x N matrix).
+    c_dist : str
+        Distance metric: "VI" or "Binder".
+    alpha : float
+        Credible level (default 0.05).
+        
+    Returns
+    -------
+    dict
+        Dictionary containing the ball boundary (horiz) and vertical extremes.
+    """
+    
+    c_star = np.array(c_star)
+    cls_draw = np.array(cls_draw)
+    
+    N = len(c_star)
+    M = cls_draw.shape[0]
+    
+    # helper distance Functions ---    
+    def compute_dist_binder_batch(ref, draws):
+        """Batch Binder distance calculation."""
+        dists = np.zeros(draws.shape[0])
+        adj_ref = (ref[:, None] == ref[None, :])
+        
+        for i in range(draws.shape[0]):
+            adj_draw = (draws[i][:, None] == draws[i][None, :])
+            # abs(bool - bool) acts as XOR
+            diff = np.abs(adj_draw.astype(int) - adj_ref.astype(int))
+            dists[i] = np.sum(diff) / (N**2)
+        return dists
+
+    def compute_dist_vi_batch(ref, draws):
+        """Batch Variation of Information calculation."""
+        
+        dists = np.zeros(draws.shape[0])
+        
+        def get_sizes(c):
+            # relabel to contiguous 0..K to ensure bincount works efficiently
+            _, inverse = np.unique(c, return_inverse=True)
+            counts = np.bincount(inverse)
+            return counts[inverse] # vector of size N
+            
+        sizes_ref = get_sizes(ref)
+        log_ref = np.log2(sizes_ref)
+        sum_log_ref = np.sum(log_ref)
+        
+        for m in range(draws.shape[0]):
+            current = draws[m]
+            sizes_draw = get_sizes(current)
+            sum_log_draw = np.sum(np.log2(sizes_draw))
+            
+            # Remap current to 0..K1 and ref to 0..K2 to keep numbers small
+            _, curr_mapped = np.unique(current, return_inverse=True)
+            _, ref_mapped = np.unique(ref, return_inverse=True)
+            
+            max_curr = curr_mapped.max() + 1
+            linear_idx = curr_mapped + ref_mapped * max_curr
+            
+            # Count occurrences of these pairs (intersections)
+            counts_inter = np.bincount(linear_idx)
+            # Map back to node size
+            sizes_inter = counts_inter[linear_idx]
+            
+            sum_log_inter = np.sum(np.log2(sizes_inter))
+            
+            dists[m] = (sum_log_ref + sum_log_draw - 2 * sum_log_inter) / N
+            
+        return dists
+    
+    if c_dist == "Binder":
+        d = compute_dist_binder_batch(c_star, cls_draw)
+    elif c_dist == "VI":
+        d = compute_dist_vi_batch(c_star, cls_draw)
+    else:
+        raise ValueError("c_dist must be 'VI' or 'Binder'")
+        
+   
+    sorted_indices = np.argsort(d)
+    sorted_dists = d[sorted_indices]
+    
+    ind_star = int(np.ceil((1 - alpha) * M)) - 1 # 0-based index adjustment
+    if ind_star < 0: ind_star = 0
+    
+    cb_indices = sorted_indices[:ind_star+1]
+    cb = cls_draw[cb_indices]
+    cb_dists = sorted_dists[:ind_star+1]
+    
+    cutoff_dist = sorted_dists[ind_star]
+    
+    
+    c_horiz = cb[cb_dists == cutoff_dist]
+    
+    # safer for to arbitrary labels to use number of unique values.
+    k_cb = np.array([len(np.unique(row)) for row in cb]) 
+    # k_cb = np.max(cb, axis=1) 
+    
+    min_k = np.min(k_cb)
+    mask_min_k = (k_cb == min_k)
+    dists_min_k = cb_dists[mask_min_k]
+    max_d_of_min_k = np.max(dists_min_k)
+    c_uppervert = cb[mask_min_k & (cb_dists == max_d_of_min_k)]
+
+    max_k = np.max(k_cb)
+    mask_max_k = (k_cb == max_k)
+    dists_max_k = cb_dists[mask_max_k]
+    max_d_of_max_k = np.max(dists_max_k)
+    c_lowervert = cb[mask_max_k & (cb_dists == max_d_of_max_k)]
+
+    output = {
+        "c_star": c_star,
+        "c_horiz": c_horiz,
+        "c_uppervert": c_uppervert,
+        "c_lowervert": c_lowervert,
+        "dist_horiz": cutoff_dist,
+        "dist_uppervert": max_d_of_min_k,
+        "dist_lowervert": max_d_of_max_k
+    }
+    
+    return output

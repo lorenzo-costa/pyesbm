@@ -2,8 +2,6 @@
 import sys
 from pathlib import Path
 
-from pyesbm.utilities.numba_functions import sampling_scheme
-
 sys.path.append(str(Path(__file__).parent.parent))
 from pyesbm.priors import GibbsTypePrior
 import numpy as np
@@ -323,4 +321,4 @@ class TestExpectedValue:
         probs = np.exp(log_terms)
         true_value = np.sum(h * probs)
 
-        assert abs(expected - true_value) < self.eps
+        assert abs(expected - true_value) < self.eps    

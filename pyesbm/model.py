@@ -8,11 +8,15 @@ from pyesbm.utilities import (
     compute_mhk,
     compute_y_values,
     ClusterProcessor,
+    waic_calculation,
 )
 
 from pyesbm.esbm_config import ESBMconfig
 
 from pyesbm.utilities.plotting_functions import plot_trace
+
+from pyesbm.utilities.vi_functs import credibleball
+
 
 
 #########################################
@@ -25,40 +29,45 @@ class BaseESBM(ESBMconfig):
     ----------
     Y : 2D array
         adjacency matrix (if None automatically generated), by default None
+    likelihood : BaseLikelihood object
+        likelihood object
+    prior : BasePrior object
+        prior object
     bipartite : bool
-        whether the network is bipartite, by default False
-    likelihood : str
-        likelihood type, by default 'bernoulli'
-    prior_a : float
-        shape parameter for gamma prior, by default 1
-    prior_b : float
-        rate parameter for gamma prior, by default 1
-    scheme_type : str
-        prior type. Possible choices are DP (dirichlet process), PY (pitman-yor process),
-        GN (gnedin process), DM (dirichlet-multinomial model)
-    scheme_param : float
-        additional parameter for cluster prior, by default 1
-    sigma : float
-        sigma parameter for Gibbs-type prior, by default 1
-    gamma : float
-        additional parameter for GN model, by default None
-    bar_h : int
-        maximum number of clusters for DM model, if None set to num_users
-    degree_correction : float
-        degree-correction parameter for users (relevant only for DC model), by default 1
-    alpha_c : float or list
-        additional parameter for categorical covariate model (if int defaults to
-        vector of equal numbers), by default 1
-    covariates_1 : list
-        list of tuples (covname_covtype, covvalues), by default None
-    covariates_2 : list
-        list of tuples (covname_covtype, covvalues), by default None
+        whether the network is bipartite, by default True
+    clustering : list or array-like
+        initial clustering assignments, by default None
+    covariates_1 : CovariateClass
+        covariate object for first dimension, by default None
+    covariates_2 : CovariateClass
+        covariate object for second dimension, by default None
     verbose : bool
         whether to print verbose output for user-related computations, by default False
+    rng : np.random.Generator or int, optional
+        random number generator or seed, by default None
 
     Attributes
     ----------
-    #TODO
+    num_nodes_1 : int
+        number of nodes in first dimension
+    num_nodes_2 : int
+        number of nodes in second dimension
+    num_clusters_1 : int
+        number of clusters in first dimension
+    num_clusters_2 : int
+        number of clusters in second dimension
+    clustering_1 : np.ndarray
+        cluster assignments for first dimension
+    clustering_2 : np.ndarray
+        cluster assignments for second dimension
+    frequencies_1 : np.ndarray
+        frequencies for first dimension
+    frequencies_2 : np.ndarray
+        frequencies for second dimension
+    train_llk : np.ndarray
+        log-likelihood values during training
+    estimation_method : str
+        method used for cluster assignment estimation
     """
 
     def __init__(
@@ -69,15 +78,12 @@ class BaseESBM(ESBMconfig):
         *,
         bipartite=True,
         clustering=None,
-        degree_correction=0,
-        alpha_c=1,
         covariates_1=None,
         covariates_2=None,
         epsilon=1e-6,
         rng=None,
         verbose=False,
     ):
-        # a lot of type and value checking
 
         super().__init__(
             Y=Y,
@@ -85,12 +91,10 @@ class BaseESBM(ESBMconfig):
             prior=prior,
             bipartite=bipartite,
             clustering=clustering,
-            degree_correction=degree_correction,
-            alpha_c=alpha_c,
             covariates_1=covariates_1,
             covariates_2=covariates_2,
-            epsilon=epsilon,
             rng=rng,
+            epsilon=epsilon,
             verbose=verbose,
         )
 
@@ -151,9 +155,11 @@ class BaseESBM(ESBMconfig):
             self.covariates_2.get_nch(
                 clustering=self.clustering_2, num_clusters=self.num_clusters_2
             )
+        
+        self.estimation_method = None
 
     def gibbs_step(self, side=1):
-        """General template for a Gibbs sampling step."""
+        """Performs a single Gibbs sampling step for the specified side."""
 
         if side not in [1, 2]:
             raise ValueError("side must be 1 or 2")
@@ -204,6 +210,7 @@ class BaseESBM(ESBMconfig):
                 )
                 print(f"clustering before removal: {computed_quantities['clustering']}")
                 print(f"nch before removal: {computed_quantities['nch']}")
+                print(f"mhk shape before removal: {computed_quantities['mhk'].shape}")
 
             computed_quantities["node_idx"] = i
             computed_quantities["current_cluster"] = clustering[i]
@@ -256,8 +263,8 @@ class BaseESBM(ESBMconfig):
         setattr(self, f"clustering_{side}", clustering)
         setattr(self, f"frequencies_{side}", frequencies)
         setattr(self, f"num_clusters_{side}", num_clusters)
-
-        return
+        
+        return computed_quantities
 
     def compute_log_likelihood(self):
         """Computes the log-likelihood of the model.
@@ -267,8 +274,6 @@ class BaseESBM(ESBMconfig):
         float
             Log-likelihood value
         """
-        # print(self.clustering_1, self.clustering_2)
-        # print(self.frequencies_1, self.frequencies_2)
 
         mhk = compute_mhk(self.Y, self.clustering_1, self.clustering_2)
 
@@ -319,22 +324,17 @@ class BaseESBM(ESBMconfig):
 
         mcmc_frequencies_list_1 = []
         mcmc_frequencies_list_2 = []
-
-        degree_users_list_1 = []
-        degree_items_list_2 = []
-
+        
         llks[0] = ll
         mcmc_draws_1[0] = self.clustering_1.copy()
         mcmc_draws_2[0] = self.clustering_2.copy()
 
         mcmc_frequencies_list_1.append(self.frequencies_1.copy())
         mcmc_frequencies_list_2.append(self.frequencies_2.copy())
-        # degree_users_list_1.append(self.degree)
-        # degree_items_list_2.append(self._compute_degree_sequence(side=2))
-
+        
         check = time.perf_counter()
         for it in range(n_iters):
-            self.gibbs_step(side=1)
+            out = self.gibbs_step(side=1)
             if self.bipartite is True:
                 self.gibbs_step(side=2)
             else:
@@ -373,8 +373,50 @@ class BaseESBM(ESBMconfig):
         self.mcmc_draws_2_frequencies = mcmc_frequencies_list_2
 
         return llks, mcmc_draws_1, mcmc_draws_2
+    
+    def compute_waic(self, burn_in=0, thinning=1):
+        """Computes the WAIC for the model.
 
-    def pred_cluster():
+        Parameters
+        ----------
+        burn_in : int, optional
+            Number of initial samples to discard, by default 0
+        thinning : int, optional
+            Thinning factor for MCMC samples, by default 1
+
+        Returns
+        -------
+        float
+            WAIC value
+        """
+        if self.mcmc_draws_1 is None:
+            raise Exception("model must be trained first")
+
+        num_iters = (self.n_iters-burn_in) // thinning + 1
+        llk_array = np.zeros((self.Y.shape[0] * self.Y.shape[1], num_iters))
+        
+        for it in range(burn_in, self.n_iters + 1, thinning):
+            cl1 = self.mcmc_draws_1[it]
+            cl2 = self.mcmc_draws_2[it]
+            fr1 = self.mcmc_draws_1_frequencies[it]
+            fr2 = self.mcmc_draws_2_frequencies[it]
+            mhk = compute_mhk(self.Y, cl1, cl2)
+            llk_array[:, it] = self.likelihood.sample_llk_edges(
+                                        Y=self.Y,
+                                        mhk=mhk,
+                                        frequencies_1=fr1,
+                                        frequencies_2=fr2,
+                                        clustering_1=cl1,
+                                        clustering_2=cl2,
+                                        bipartite=self.bipartite,
+                                        rng=self.rng,
+                                    )
+
+        waic_value = waic_calculation(llk_array)
+
+        return waic_value
+
+    def pred_cluster(self):
         pass
 
     def estimate_edge_probabilities(self, burn_in=0, thinning=1):
@@ -535,7 +577,18 @@ class BaseESBM(ESBMconfig):
         return est_cluster_1, vi_value_1, est_cluster_2, vi_value_2
 
     def plot_trace(self, start=0, save_path=None, figsize=(6, 4)):
-        """Plot trace of log-likelihood during training."""
+        """Plot trace of log-likelihood during training.
+
+        Parameters
+        ----------
+        start : int, optional
+            Starting iteration for plotting, by default 0
+        save_path : str, optional
+            Path to save the plot, by default None
+        figsize : tuple, optional
+            Figure size for the plot, by default (6, 4)
+        """
+        
         if self.train_llk is None:
             raise Exception("model must be trained first")
         plot_trace(
@@ -563,41 +616,103 @@ class BaseESBM(ESBMconfig):
         preds : list
             List of predicted ratings corresponding to the input pairs.
         """
+        if self.estimation_method is None:
+            raise Exception("cluster assignments must be estimated before prediction")
+        
+        mhk = compute_mhk(self.Y, self.clustering_1, self.clustering_2)
+        preds = self.likelihood.point_predict(
+            mhk=mhk,
+            frequencies_1=self.frequencies_1,
+            frequencies_2=self.frequencies_2,
+            clustering_1=self.clustering_1,
+            clustering_2=self.clustering_2,
+            pairs=pairs,
+        )
+        return preds
+    
+    def compute_llk_edges(self, iter=None):
+        """Compute log-likelihood for edges in the graph.
+        
+        Parameters
+        ----------
+        iter : int, optional
+            MCMC iteration to use for computation, by default None
+        
+        Returns
+        -------
+        llk_edges : np.ndarray
+            Log-likelihoods for the edges in the graph.
+        """
+        if iter is not None:
+            if self.mcmc_draws_1 is None:
+                raise Exception("model must be trained first")
+            clustering_1 = self.mcmc_draws_1[iter]
+            clustering_2 = self.mcmc_draws_2[iter]
+            frequencies_1 = self.mcmc_draws_1_frequencies[iter]
+            frequencies_2 = self.mcmc_draws_2_frequencies[iter]
+        else:
+            clustering_1 = self.clustering_1
+            clustering_2 = self.clustering_2
+            frequencies_1 = self.frequencies_1
+            frequencies_2 = self.frequencies_2
 
-        raise NotImplementedError("not implemented yet")
-
-    def predict_with_ranking(self, users):
-        """Predict items for users based on cluster with highest score.
+        mhk = compute_mhk(self.Y, clustering_1, clustering_2)
+        llk_edges = self.likelihood.sample_llk_edges(
+            Y=self.Y,
+            mhk=mhk,
+            frequencies_1=frequencies_1,
+            frequencies_2=frequencies_2,
+            clustering_1=clustering_1,
+            clustering_2=clustering_2,
+            bipartite=self.bipartite,
+            rng=self.rng,
+        )
+        return llk_edges
+    
+    def credible_ball(self, burn_in=0, thinning=1, alpha=0.05):
+        """Compute credible ball for cluster assignments.
 
         Parameters
         ----------
-        users : list
-            List of users for whom to predict items.
+        burn_in : int, optional
+            Number of initial samples to discard, by default 0
+        thinning : int, optional
+            Thinning factor for MCMC samples, by default 1
+        alpha : float, optional
+            Significance level for credible ball, by default 0.05
 
         Returns
         -------
-        list
-            List of predicted item indices for each user.
+        dict
+            Dictionary containing credible ball information
         """
-        raise NotImplementedError("not implemented yet")
+        if self.mcmc_draws_1 is None:
+            raise Exception("model must be trained first")
+        
+        if self.estimation_method != "vi":
+            raise Exception("cluster assignments must be estimated using VI before computing credible ball")
+        
+        estimated_clusters_1 = self.clustering_1
+        estimated_clusters_2 = self.clustering_2
 
-    def predict_k(self, users, k):
-        """Predict k items for each user based on cluster with highest score.
+        cc_matrix_1 = compute_co_clustering_matrix(self.mcmc_draws_1[burn_in::thinning])
+        cc_matrix_2 = compute_co_clustering_matrix(self.mcmc_draws_2[burn_in::thinning])
+        
+        cb1 = credibleball(
+            c_star=estimated_clusters_1,
+            cls_draw=cc_matrix_1,
+            c_dist="VI", 
+            alpha=alpha
+        )
 
-        Parameters
-        ----------
-        users : list
-            List of users for whom to predict items.
-        k : int
-            Number of items to predict for each user.
+        cb2 = credibleball(
+            c_star=estimated_clusters_2,
+            cls_draw=cc_matrix_2,
+            c_dist="VI",
+            alpha=alpha
+        )
 
-        Returns
-        -------
-        list
-            List of predicted item indices for each user.
-        """
-        raise NotImplementedError("not implemented yet")
-
+        return cb1, cb2
 
     def _process_clusters(self, clustering, side=1):
         """Computes cluster metrics.
