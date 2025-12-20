@@ -434,9 +434,9 @@ class TestBaseESBM:
         likelihood = BetaBernoulli(alpha=1, beta=1)
 
         cov1 = (
-            CategoricalCovariate(self.t1)
+            CategoricalCovariate(self.t1, importance=2)
             if cov_type == "categorical"
-            else CountCovariate(self.t1)
+            else CountCovariate(self.t1, importance=2)
         )
 
         model = BaseESBM(
