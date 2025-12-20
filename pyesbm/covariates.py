@@ -9,17 +9,59 @@ from scipy.sparse import csr_matrix
 
 
 class BaseCovariate:
-    def __init__(self):
-        pass
+    """Base class for covariate models"""
+    def __init__(self, name=None, type=None, importance=1, **kwargs):
+        if not isinstance(name, str):
+            raise TypeError(f"name must be a string. You provided {type(name)}")
+        if not isinstance(type, str):
+            raise TypeError(f"type must be a string. You provided {type(type)}")
+        if not isinstance(importance, (int, float)):
+            raise TypeError(
+                f"importance must be int or float. You provided {type(importance)}"
+            )
+        if importance <= 0:
+            raise ValueError("importance must be positive.")
+        
+        self.name = name
+        self.type = type
+        self.importance = importance
 
     def compute_logits(self):
         raise NotImplementedError(
             "This is an abstract method. Please implement in subclass."
         )
+    
+    def __repr__(self):
+        return f"{self.__class__.__name__}(name={self.name}, type={self.type})"
 
 
 class CategoricalCovariate(BaseCovariate):
-    def __init__(self, cov_array, name=None, alpha_c=1, **kwargs):
+    """Categorical covariate model.
+
+    Arguments
+    ---------
+    cov_array : array-like
+        Array of categorical covariate values for each node.
+    alpha_c : int, float, np.ndarray, list, optional
+        Concentration parameters for each category. If int or float, the same value is used for
+        all categories. Default is 1.
+    name : str, optional
+        Name of the covariate. Default is "categorical_covariate".
+    importance : int, float, optional
+        Importance weight for the covariate. Default is 1.
+
+    Methods
+    -------
+    compute_logits(num_components, node_idx, frequencies_minus, nch_minus, **kwargs)
+        Compute logits for gibbs update.
+    """
+    
+    def __init__(self, cov_array, alpha_c=1, name=None, **kwargs):
+        
+        name = name if name is not None else "categorical_covariate"
+        
+        super().__init__(name=name, type="categorical")
+        
         if not isinstance(alpha_c, (int, float, np.ndarray, list)):
             raise TypeError(
                 f"alpha_c must be int, float, np.ndarray or list. You provided {type(alpha_c)}"
@@ -33,8 +75,8 @@ class CategoricalCovariate(BaseCovariate):
         if isinstance(cov_array, list):
             cov_array = np.array(cov_array)
 
-        self.name = name if name is not None else "categorical_covariate"
-
+        self.name = name
+        
         if isinstance(alpha_c, (int, float)):
             n_unique = len(np.unique(cov_array))
             self.alpha_c = np.array([alpha_c] * n_unique)
@@ -47,10 +89,30 @@ class CategoricalCovariate(BaseCovariate):
 
         self.cov_type = "categorical"
 
-    def compute_logits(
-        self, num_components, node_idx, frequencies_minus, nch_minus, **kwargs
-    ):
-        """Compute logits for categorical covariate."""
+    def compute_logits(self, 
+                       num_components, 
+                       node_idx, 
+                       frequencies_minus, 
+                       nch_minus, 
+                       **kwargs):
+        """Compute logits for categorical covariate.
+
+        Parameters
+        ----------
+        num_components : int
+            Number of components.
+        node_idx : int
+            Index of the node.
+        frequencies_minus : np.ndarray
+            Frequencies for the nodes.
+        nch_minus : np.ndarray
+            Count of neighbors for the nodes.
+
+        Returns
+        -------
+        np.ndarray
+            Logits for the categorical covariate.
+        """
         logits = compute_logits_categorical(
             num_components=num_components,
             idx=node_idx,
@@ -60,12 +122,45 @@ class CategoricalCovariate(BaseCovariate):
             alpha_c=self.alpha_c,
             alpha_0=self.alpha_0,
         )
+        
+        logits = logits * self.importance
 
         return logits
 
 
 class CountCovariate(BaseCovariate):
-    def __init__(self, cov_array, name=None, a=1.0, b=1.0, **kwargs):
+    """Count covariate model.
+
+    Arguments
+    ---------
+    cov_array : array-like
+        Array of count covariate values for each node.
+    a : int, float, optional
+        Hyperparameter a for the Beta prior. Default is 1.0.
+    b : int, float, optional
+        Hyperparameter b for the Beta prior. Default is 1.0.
+    name : str, optional
+        Name of the covariate. Default is "count_covariate".
+    importance : int, float, optional
+        Importance weight for the covariate. Default is 1.
+    
+    Methods
+    -------
+    compute_logits(num_components, node_idx, frequencies, frequencies_minus, nch, nch_minus, **kwargs)
+        Compute logits for gibbs update.
+    """
+    def __init__(self, 
+                 cov_array, 
+                 name=None, 
+                 a=1.0, 
+                 b=1.0,
+                 importance=1,
+                 **kwargs):
+        
+        name = name if name is not None else "count_covariate"
+        
+        super().__init__(name=name, importance=importance, type="count")
+        
         if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
             raise TypeError(
                 f"a and b must be int or float. You provided {type(a)} and {type(b)}"
@@ -84,8 +179,7 @@ class CountCovariate(BaseCovariate):
         if isinstance(cov_array, list):
             cov_array = np.array(cov_array)
 
-        self.name = name if name is not None else "count_covariate"
-
+        self.name = name
         num_classes = np.max(cov_array) + 1
         self.cov_values = (np.arange(num_classes) <= cov_array[:, None]).astype(int)
 
@@ -139,8 +233,38 @@ class CountCovariate(BaseCovariate):
             b=self.b,
         )
 
+        logits = logits * self.importance
+
         return logits
 
+class ContinuousCovariate(BaseCovariate):
+    def __init__(self, 
+                 cov_array, 
+                 name=None,
+                 importance=1,
+                 **kwargs):
+
+        name = name if name is not None else "continuous_covariate"
+
+        super().__init__(name=name, importance=importance, type="continuous")
+
+        if not isinstance(cov_array, (list, np.ndarray)):
+            raise TypeError(
+                f"cov_array must be a list or np.ndarray. You provided {type(cov_array)}"
+            )
+        if isinstance(cov_array, list):
+            cov_array = np.array(cov_array)
+
+        self.name = name
+        self.cov_values = cov_array.reshape(-1, 1)
+
+        self.cov_type = "continuous"
+
+    def compute_logits(self, **kwargs):
+        """Compute logits for continuous covariate."""
+        raise NotImplementedError(
+            "Continuous covariate likelihood not implemented yet."
+        )
 
 class CovariateModel:
     def __init__(self, covariates):
